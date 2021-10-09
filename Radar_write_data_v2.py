@@ -21,7 +21,7 @@ if __name__ == "__main__":
     print("111111111111111111111111111111111111111111111")
     time.sleep(1)
     # Data initial
-    port = serial.Serial("COM3",baudrate = 921600, timeout = 0.5) # Data Port
+    port = serial.Serial("COM6",baudrate = 921600, timeout = 0.5) # Data Port
     print(port)
     #initial global value
     gv = globalV(0)
@@ -69,7 +69,7 @@ if __name__ == "__main__":
         writer = csv.writer(csvFile, dialect = "excel")
         writer.writerow(['rangeBinInde'])
     
-    while(int(time_End - time_Start) != 400*0.1):
+    while(int(time_End - time_Start) != 40*0.1):
         pt = datetime.datetime.now()
         (dck , vd, rangeBuf) = vts.tlvRead(False)  #是否顯示[Message TLV header]
         #print(dck)
@@ -106,11 +106,22 @@ if __name__ == "__main__":
         temp_array = temp_array[1:] 
     temp_array = np.array(temp_array).astype('float32')
     print("STD：", np.std(temp_array)) 
+    print('Maximum error: ', np.max(temp_array) - np.min(temp_array))
     print("done!")
 
-    f = open(path_data_txt_hr, 'w')
-    f.write(input("輸入你的心律Ground Truth："))
-    f.close()
-    f = open(path_data_txt_br, 'w')
-    f.write(input("輸入你的呼吸律Ground Truth："))
-    f.close()
+    # 判別錯誤資料
+    input_gt_hr = int(input('輸入你的心律Ground Truth：'))
+    input_gt_br = int(input('輸入你的呼吸律Ground Truth：'))
+    if input_gt_hr == 0 and input_gt_br == 0:
+        os.remove(path_data)
+        os.remove(path_range_bin)
+        print('Data cleaning completed!')
+    else:
+        # Heart
+        f = open(path_data_txt_hr, 'w')
+        f.write(str(input_gt_hr))
+        f.close()
+        # Breath
+        f = open(path_data_txt_br, 'w')
+        f.write(str(input_gt_br))
+        f.close()

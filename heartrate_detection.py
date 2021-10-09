@@ -445,6 +445,8 @@ if __name__ == '__main__':
     all_gt_array = []
     all_ti_og_br = []
     all_ti_og_hr = []
+    sample_total = 0
+    acc_sample_total = 0
     for user in os.listdir("dataset"):
         if os.path.isdir(os.path.join("dataset", user, "gt_hr")):
             predict_array = []
@@ -472,12 +474,11 @@ if __name__ == '__main__':
                 confidenceMetricHeartOut_xCorr = vitial_sig['confidenceMetricHeartOut_xCorr'].values
                 all_ti_og_hr.append(int(np.mean(heart)))
                 ti_predict_array.append(int(np.mean(heart)))
-
+                sample_total += 1
                 for i in range (0, 800, 800):  # 0, 600, 1200
                     result_rate = detect_breath(unwrapPhase[0 + i: 800 + i], count, disp)
                     predict_array.append(int(result_rate))
                     all_pr_array.append(int(result_rate))
-                    
                     if result_rate != None:
                         absolute_error = absolute_error + abs(16 - result_rate)
                         count_all += 1
@@ -494,6 +495,13 @@ if __name__ == '__main__':
             print("ground_truth_array")    
             print(ground_truth_array)
             print("L1 lOSS",calculate_l1_loss(ground_truth_array, predict_array))
+            for i in range(len(ground_truth_array)):
+                if np.abs(ground_truth_array[i] - predict_array[i]) <= 10:
+                    acc_sample_total+=1
             print("TI L1 lOSS",calculate_l1_loss(ground_truth_array, ti_predict_array))
+    print("---------------------------------------------------------------------------")
+
     print("AVG L1 lOSS",calculate_l1_loss(all_gt_array, all_pr_array))
     print("AVG TI  L1 lOSS",calculate_l1_loss(all_gt_array, all_ti_og_hr))
+    print("Total sample：", sample_total)
+    print("Total acc sample：", acc_sample_total)

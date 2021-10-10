@@ -474,8 +474,8 @@ if __name__ == '__main__':
                 sample_total += 1
                 for i in range (0, 800, 800):  # 0, 600, 1200
                     result_rate = detect_breath(unwrapPhase[0 + i: 800 + i], count, disp)
-                    predict_array.append(int(result_rate))
-                    all_pr_array.append(int(result_rate))
+                    predict_array.append(round(result_rate))
+                    all_pr_array.append(round(result_rate))
                     if result_rate != None:
                         absolute_error = absolute_error + abs(16 - result_rate)
                         count_all += 1

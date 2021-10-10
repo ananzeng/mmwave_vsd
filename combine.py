@@ -11,26 +11,31 @@ import random
 from collections import deque
 import serial
 from mmWave import vitalsign
+import time
+import vitalsign_v2
+import datetime
 
-class globalV:
-	count = 0
-	hr = 0.0
-	br = 0.0
-	def __init__(self, count):
-		self.count = count
+# class globalV:
+# 	count = 0
+# 	hr = 0.0
+# 	br = 0.0
+# 	def __init__(self, count):
+# 		self.count = count
 
-port = serial.Serial("COM3",baudrate = 921600, timeout = 0.5)
-gv = globalV(0)
-vts = vitalsign.VitalSign(port)
+# port = serial.Serial("COM3",baudrate = 921600, timeout = 0.5)
+# gv = globalV(0)
+# vts = vitalsign.VitalSign(port)
 
 def Phase_difference(unwarp_phase):
-	phase_diff = np.zeros((300,))
-	for i in range(len(unwarp_phase)-1):
-		phase_diff[i] = unwarp_phase[i+1] - unwarp_phase[i]
+	phase_diff = []
+	for tmp in range(len(unwarp_phase)):
+		if tmp > 0:
+			phase_diff_tmp = unwarp_phase[tmp] - unwarp_phase[tmp - 1]
+			phase_diff.append(phase_diff_tmp)
 	return phase_diff
 
 def Remove_impulse_noise(phase_diff, thr):
-	removed_noise = np.zeros((300,))
+	removed_noise = np.copy(phase_diff)
 	for i in range(1, len(phase_diff)-1):
 		forward = phase_diff[i] - phase_diff[i-1]
 		backward = phase_diff[i] - phase_diff[i+1]
@@ -41,53 +46,55 @@ def Remove_impulse_noise(phase_diff, thr):
 	return removed_noise
 
 def Amplify_signal(removed_noise):
-	return removed_noise*1.0
+	for i in range(len(removed_noise)):
+		tmp = removed_noise[i]
+		if tmp > 0:
+			tmp += 1
+		elif tmp < 0:
+			tmp -= 1
+		tmp *= 5
+		removed_noise[i] == tmp
+	return removed_noise
 	
-def butter_bandpass(lowcut, highcut, fs, order=5):
-	nyq = 0.5 * fs
-	low = lowcut / nyq
-	high = highcut / nyq
-	b, a = butter(order, [low, high], btype='band')
-	return b, a 
+def iir_bandpass_filter_1(data, lowcut, highcut, signal_freq, filter_order, ftype):
+    '''
+    IIR filter
+    '''
+    nyquist_freq = 0.5 * signal_freq
+    low = lowcut / nyquist_freq
+    high = highcut / nyquist_freq
+    b, a = signal.iirfilter(filter_order, [low, high], rp=5, rs=60, btype='bandpass', ftype = ftype)
+    y = signal.lfilter(b, a, data)
+    return y
 
-def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
-	b, a = butter_bandpass(lowcut, highcut, fs, order=order)
-	y = lfilter(b, a, data)
-	return y
+def MLR(data, delta):
+    data_s = np.copy(data)
+    mean = np.copy(data)
+    m = np.copy(data)
+    b = np.copy(data)
+    for t in range(len(data)):
+        if (t - delta ) < 0 or (t + delta + 1) > len(data):
+            None
+        else:
+            start = t - delta
+            end = t + delta + 1
+            mean[t] = np.mean(data[start:end])
 
-def MLR(data,delta):
-	data_s=np.copy(data)
-	mean=np.copy(data)
-	m=np.copy(data)
-	b=np.copy(data)
-	#calculate m
-	for t in range(len(data)):
-		# constraint
-		if ((t-delta)<0 or (t+delta)>(len(data)-1)):
-			None
-		# if the sliding window is in the boundary
-		else:
-			mean[t]=(np.sum(data[int(t-delta):int(t+delta+1)]))/(2*delta+1)
-			# calaulate the sigma
-			mtmp=0
-			for j in range(-delta,delta+1):
-				mtmp=mtmp+(j*(data[j+t]-mean[t]))
-			m[t] = 3*mtmp/(delta*(2*delta+1)*(delta+1))
-			b[t] = mean[t]-(t*m[t])
+            mtmp = 0
+            for i in range(-delta, delta + 1):
+                mtmp += i * (data[t + i] - mean[t])
+            m[t] = (3 * mtmp) / (delta * (2 * delta + 1) * (delta + 1))
+            b[t] = mean[t] - (t * m[t])
 
-	for t in range(len(data)):
-		# constraint
-		# if the sliding window is in the boundary
-		if ((t-2*delta)>=0 and (t+2*delta)<=(len(data)-1)):
-			# calaulate smooth ECG
-			tmp=0
-			for i in range(-delta,delta+1):
-				tmp=tmp+(t*m[t+i]+b[t+i])
-				# print(i)
-			data_s[t]=tmp/(2*delta+1)
-		else:
-			data_s[t]=data[t]
-	return data_s
+    for t in range(len(data)):
+        if (t - delta) < 0 or (t + delta + 1) > len(data):
+            data_s[t] = data[t]
+        else:
+            tmp = 0
+            for i in range(t - delta, t + delta):
+                tmp += m[i] * t + b[i]
+            data_s[t] = tmp / (2 * delta + 1)
+    return data_s
 
 def feature_detection(data):
 	data_v=np.copy(data)
@@ -187,75 +194,142 @@ def candidate_search(signal_v,feature,window_size):
 
 def caculate_breathrate(NT_points,NB_points):#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	# if both NT and NB are not detected
-	if(NT_points.shape[0]<=1 and NB_points.shape[0]<=1):
-		return None
-	# if only NT are detected
-	elif(NT_points.shape[0]>1 and NB_points.shape[0]<=1):
-		tmp=np.concatenate(([0],NT_points),axis=0)
-		tmp_2=np.concatenate((NT_points,[0]),axis=0)
-		aver_NT=tmp_2[1:-1]-tmp[1:-1]
-		return 1200/np.mean(aver_NT) #(60)*(20)
-	# if only NB are detected
-	elif(NB_points.shape[0]>1 and NT_points.shape[0]<=1):
-		tmp=np.concatenate(([0],NB_points),axis=0)
-		tmp_2=np.concatenate((NB_points,[0]),axis=0)
-		aver_NB=tmp_2[1:-1]-tmp[1:-1]
-		return 1200/np.mean(aver_NB)
-	else:
-		tmp=np.concatenate(([0],NT_points),axis=0)   #tmp 兩點距離
-		tmp_2=np.concatenate((NT_points,[0]),axis=0)
-		aver_NT=tmp_2[1:-1]-tmp[1:-1]
-		tmp=np.concatenate(([0],NB_points),axis=0)
-		tmp_2=np.concatenate((NB_points,[0]),axis=0)
-		aver_NB=tmp_2[1:-1]-tmp[1:-1]
-		aver=(np.mean(aver_NB)+np.mean(aver_NT))/2
-	return 1200/aver    #因為一個周期是20Hz所以時間就是1/20，然後是算每分鐘，所以還要再除以1/60
+    if NT_points.shape[0] <= 1 and NB_points.shape[0] <= 1:
+        return None
+    # if only NT are detected
+    elif NT_points.shape[0] > 1 and NB_points.shape[0] <= 1:
+        tmp = np.concatenate(([0], NT_points), axis=0)
+        tmp_2 = np.concatenate((NT_points, [0]), axis=0)
+        aver_NT = tmp_2[1:-1] - tmp[1:-1]
+        return 1200 / np.mean(aver_NT)  # (60)*(20)
+    # if only NB are detected
+    elif NB_points.shape[0] > 1 >= NT_points.shape[0]:
+        tmp = np.concatenate(([0], NB_points), axis=0)
+        tmp_2 = np.concatenate((NB_points, [0]), axis=0)
+        aver_NB = tmp_2[1:-1] - tmp[1:-1]
+        return 1200 / np.mean(aver_NB)
+    else:
+        tmp = np.concatenate(([0], NT_points), axis=0)  # tmp 兩點距離
+        tmp_2 = np.concatenate((NT_points, [0]), axis=0)
+        aver_NT = tmp_2[1:-1] - tmp[1:-1]
+        tmp = np.concatenate(([0], NB_points), axis=0)
+        tmp_2 = np.concatenate((NB_points, [0]), axis=0)
+        aver_NB = tmp_2[1:-1] - tmp[1:-1]
+        aver = (np.mean(aver_NB) + np.mean(aver_NT)) / 2
+    return 1200 / aver    #因為一個周期是20Hz所以時間就是1/20，然後是算每分鐘，所以還要再除以1/60
 
-def detect_Breath(data): #,lowHz
-	
-	data_txt = Phase_difference(data)
+def detect_Breath(unw_phase): #,lowHz
+	# Phase difference
+	phase_diff = Phase_difference(unw_phase)
 
-	data_txt = Remove_impulse_noise(data_txt, 0.15)
+	# RemoveImpulseNoise
+	re_phase_diff = Remove_impulse_noise(phase_diff, 1.5)
 
-	data_txt = Amplify_signal(data_txt)
+	# Linear amplify
+	amp_sig = Amplify_signal(re_phase_diff)
 
-	data_txt = butter_bandpass_filter(data_txt, 0.1, 0.33, 20, order=5)  #breath = 0.1~0.33~0.35, order = 4
+	# Bandpass signal (cheby2)
+	bandpass_sig = iir_bandpass_filter_1(amp_sig, 0.125, 0.55, 20, 5, "cheby2") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
 
-	signal_c=MLR(data_txt,1) #平滑化  #breath = 9 hreat= 6
+	# Smoothing signal
+	smoothing_signal = MLR(bandpass_sig, 2)  # Breath = 9, Heart = 6, Delta = 1
 
 	#detect the feature
-	feature_peak,feature_valley,signal_v=feature_detection(signal_c) #找出所有的波峰及波谷
+	feature_peak, feature_valley, feature_sig = feature_detection(smoothing_signal) #找出所有的波峰及波谷
 
 	#compress with window size 7
-	feature_peak,feature_valley=feature_compress(feature_peak,feature_valley,7,signal_c) #將多餘的峰跟谷捨去 #breath= 14 hreat = 6
+	compress_peak, compress_valley = feature_compress(feature_peak, feature_valley, 22, smoothing_signal)  # Br: 20 Hr: 6  ex: 25
 
-	feature=np.append(feature_peak,feature_valley)
-	feature=np.sort(feature)
+	# Feature sort
+	compress_feature = np.append(compress_peak, compress_valley)
+	compress_feature = np.sort(compress_feature)
 
-	NT_points,NB_points=candidate_search(signal_c,feature,7) #breath = 18 hreat = 4
+	# Candidate_search
+	NT_points, NB_points = candidate_search(smoothing_signal, compress_feature, 17)  # breath = 18 hreat = 4 ex: 7
 
-	rate=caculate_breathrate(NT_points,NB_points)
-
+	rate = caculate_breathrate(NT_points, NB_points)
 	return rate 
 
-def uartGetTLVdata():
-	br_array = deque(maxlen=300)
-	for i in range(300):
-		br_array.append(0)
+# mmWave toolbox
+# def uartGetTLVdata():
+# 	br_array = deque(maxlen=300)
+# 	for i in range(300):
+# 		br_array.append(0)
 
-	port.flushInput()
+# 	port.flushInput()
+# 	while True:
+# 		(dck , vd, rangeBuf) = vts.tlvRead(False)
+# 		vs = vts.getHeader()
+# 		if dck:
+# 			#print("unwrapPhasePeak_mm:{0:.4f}".format(vd.unwrapPhasePeak_mm))
+# 			br_array.append(vd.unwrapPhasePeak_mm)
+# 			print(detect_Breath(br_array))
+
+def timing(sec):
+	print(f"Get ready in {sec} seconds...")
+	current_time = 0
+	print(f"{current_time} sec")
+	while current_time != sec:
+		time.sleep(1)
+		current_time += 1
+		print(f"{current_time} sec")
+
+if __name__ == "__main__":
+	# Timing before start
+	timing(4)
+	
+	# Connect the radar
+	port_read = serial.Serial("COM6", baudrate=921600, timeout=0.5)
+	vital_sig = vitalsign_v2.VitalSign(port_read)
+
+	# Initialization time
+	time_Start = time.time()
+	port_read.flushInput()
+
+	# Start recording
+	raw_sig = []  # 訊號的窗格
+	energe_br = []  # 呼吸能量的窗格
+	energe_hr = []  # 心跳能量的窗格
+	coco = True  # 時間開關
+	print("Recoding data...")
 	while True:
-		(dck , vd, rangeBuf) = vts.tlvRead(False)
-		vs = vts.getHeader()
-		if dck:
-			#print("unwrapPhasePeak_mm:{0:.4f}".format(vd.unwrapPhasePeak_mm))
-			br_array.append(vd.unwrapPhasePeak_mm)
-			print(detect_Breath(br_array))
+		(state, vsdata, rangeBuf) = vital_sig.tlv_read(False)
+		vs = vital_sig.getHeader()
+		if state:
+			ct = datetime.datetime.now()
+			raw_sig.append(vsdata.unwrapPhasePeak_mm)
+			energe_br.append(vsdata.sumEnergyBreathWfm)
+			energe_hr.append(vsdata.sumEnergyHeartWfm)
+			time_End = time.time()
+			if coco:
+				print(f"Elapsed time (sec): {time_End - time_Start}")
+			if len(raw_sig) >= 40 * 20:
+				try:
+					current_window_sig = raw_sig[-40*20:]
+					current_window_ebr = energe_br[-3*20:]
+					current_window_ehr = energe_hr[-3*20:]
+					if time_End - time_Start >= 1:
+						coco = False
+						time_Start = time_End
 
-ground_truth_txt='./dataset/a1.txt'
-ground_truth = np.loadtxt(ground_truth_txt)
-for i in range(0,600,300):
-	points=detect_Breath(ground_truth[0+ i:300+ i])
-	print(points)
-uartGetTLVdata()
+						# 判別有沒有呼吸與有沒有人 (憋氣可以判別)
+						if np.mean(current_window_ebr) > 3000000000 and np.mean(current_window_ehr) > 300:
+							rate = detect_Breath(current_window_sig)
+							rpm = np.round(rate)
+							print(f"Rate per minute: {rpm}")
+						elif np.mean(current_window_ebr) < 3000000000 and np.mean(current_window_ehr) > 300:
+							print("No Breath")
+						elif np.mean(current_window_ebr) < 3000000000 and np.mean(current_window_ehr) < 300:
+							print("No People")
+				# Ctrl C 中斷
+				except KeyboardInterrupt:
+					print("Interrupt")
+
+	# ground_truth_txt='./dataset/a1.txt'
+	# ground_truth = np.loadtxt(ground_truth_txt)
+	# for i in range(0,600,300):
+	# 	points=detect_Breath(ground_truth[0+ i:300+ i])
+	# 	print(points)
+	# uartGetTLVdata()
+
 

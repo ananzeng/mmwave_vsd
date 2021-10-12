@@ -28,7 +28,7 @@ if __name__ == "__main__":
     vts = vitalsign_v2.VitalSign(port)
     # --------------------------------------------------
     folder='./dataset'									#資料庫名稱
-    name = '1012test'
+    name = 'cheng-xun'
     distance = str(0.8)												#資料要放進哪個距離的資料夾
     people =  folder +'/'+ name 
     if not os.path.isdir(people):
@@ -69,7 +69,7 @@ if __name__ == "__main__":
         writer = csv.writer(csvFile, dialect = "excel")
         writer.writerow(['rangeBinInde'])
     
-    while(int(time_End - time_Start) != 40*0.1):
+    while(int(time_End - time_Start) != 400*0.1):
         pt = datetime.datetime.now()
         (dck , vd, rangeBuf) = vts.tlv_read(False)  #是否顯示[Message TLV header]
         #print(dck)

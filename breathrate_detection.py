@@ -496,6 +496,7 @@ if __name__ == '__main__':
                 if np.abs(ground_truth_array[i] - predict_array[i]) <= 2:
                     acc_sample_total+=1            
             print("TI L1 lOSS",calculate_l1_loss(ground_truth_array, ti_predict_array))
+    print("---------------------------------------------------------------------------")
     print("AVG L1 lOSS",calculate_l1_loss(all_gt_array, all_pr_array))
     print("AVG TI  L1 lOSS",calculate_l1_loss(all_gt_array, all_ti_og_br))
     print("Total sample：", sample_total)

@@ -11,6 +11,7 @@ from scipy import signal
 from scipy.fftpack import fft
 import seaborn as sns
 from tqdm import tqdm
+from number_analyze import heart_analyze
 sns.set()
 
 def calculate_l1_loss(gt, pr):
@@ -505,3 +506,7 @@ if __name__ == '__main__':
     print("AVG TI  L1 lOSS",calculate_l1_loss(all_gt_array, all_ti_og_hr))
     print("Total sample：", sample_total)
     print("Total acc sample：", acc_sample_total)
+    print("------------------------------Ours----------------------------------------")
+    heart_analyze(all_pr_array, all_gt_array)
+    print("------------------------------TI------------------------------------------")
+    heart_analyze(all_ti_og_hr, all_gt_array)    

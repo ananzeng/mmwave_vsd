@@ -17,7 +17,7 @@ def read_txt(path):
     return data
 
 if __name__ == "__main__":
-    time.sleep(4)
+    time.sleep(5)
     print("111111111111111111111111111111111111111111111")
     time.sleep(1)
     # Data initial
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     vts = vitalsign_v2.VitalSign(port)
     # --------------------------------------------------
     folder='./dataset'									#資料庫名稱
-    name = 'cheng-xun'
+    name = 'yangzihong'
     distance = str(0.8)												#資料要放進哪個距離的資料夾
     people =  folder +'/'+ name 
     if not os.path.isdir(people):

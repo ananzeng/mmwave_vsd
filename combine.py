@@ -218,34 +218,34 @@ def caculate_breathrate(NT_points,NB_points):#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         aver = (np.mean(aver_NB) + np.mean(aver_NT)) / 2
     return 1200 / aver    #因為一個周期是20Hz所以時間就是1/20，然後是算每分鐘，所以還要再除以1/60
 
-def detect_Breath(unw_phase): #,lowHz
+def detect_Breath(unw_phase, a): #,lowHz
 	# Phase difference
 	phase_diff = Phase_difference(unw_phase)
 
 	# RemoveImpulseNoise
-	re_phase_diff = Remove_impulse_noise(phase_diff, 1.5)
+	re_phase_diff = Remove_impulse_noise(phase_diff, int(a[0]))
 
 	# Linear amplify
 	amp_sig = Amplify_signal(re_phase_diff)
 
 	# Bandpass signal (cheby2)
-	bandpass_sig = iir_bandpass_filter_1(amp_sig, 0.125, 0.55, 20, 5, "cheby2") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
+	bandpass_sig = iir_bandpass_filter_1(amp_sig, float(a[1]), float(a[2]), int(a[3]), int(a[4]), "cheby2") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
 
 	# Smoothing signal
-	smoothing_signal = MLR(bandpass_sig, 2)  # Breath = 9, Heart = 6, Delta = 1
+	smoothing_signal = MLR(bandpass_sig, int(a[5]))  # Breath = 9, Heart = 6, Delta = 1
 
 	#detect the feature
 	feature_peak, feature_valley, feature_sig = feature_detection(smoothing_signal) #找出所有的波峰及波谷
 
 	#compress with window size 7
-	compress_peak, compress_valley = feature_compress(feature_peak, feature_valley, 22, smoothing_signal)  # Br: 20 Hr: 6  ex: 25
+	compress_peak, compress_valley = feature_compress(feature_peak, feature_valley, int(a[6]), smoothing_signal)  # Br: 20 Hr: 6  ex: 25
 
 	# Feature sort
 	compress_feature = np.append(compress_peak, compress_valley)
 	compress_feature = np.sort(compress_feature)
 
 	# Candidate_search
-	NT_points, NB_points = candidate_search(smoothing_signal, compress_feature, 17)  # breath = 18 hreat = 4 ex: 7
+	NT_points, NB_points = candidate_search(smoothing_signal, compress_feature, int(a[7]))  # breath = 18 hreat = 4 ex: 7
 
 	rate = caculate_breathrate(NT_points, NB_points)
 	return rate 
@@ -279,7 +279,7 @@ if __name__ == "__main__":
 	timing(4)
 	
 	# Connect the radar
-	port_read = serial.Serial("COM6", baudrate=921600, timeout=0.5)
+	port_read = serial.Serial("COM3", baudrate=921600, timeout=0.5)
 	vital_sig = vitalsign_v2.VitalSign(port_read)
 
 	# Initialization time
@@ -291,6 +291,8 @@ if __name__ == "__main__":
 	energe_br = []  # 呼吸能量的窗格
 	energe_hr = []  # 心跳能量的窗格
 	coco = True  # 時間開關
+	a = [[1.5, 0.125, 0.55, 20, 5, 2, 22, 17], [1.5, 0.9, 1.9, 20, 9, 2, 5, 4]]
+	a = np.array(a)
 	print("Recoding data...")
 	while True:
 		(state, vsdata, rangeBuf) = vital_sig.tlv_read(False)
@@ -314,11 +316,14 @@ if __name__ == "__main__":
 
 						# 判別有沒有呼吸與有沒有人 (憋氣可以判別)
 						if np.mean(current_window_ebr) > 3000000000 and np.mean(current_window_ehr) > 300:
-							rate = detect_Breath(current_window_sig)
-							rpm = np.round(rate)
-							print(f"Rate per minute: {rpm}")
+							br_rate = detect_Breath(current_window_sig, a[0][:])
+							hr_rate = detect_Breath(current_window_sig, a[1][:])
+							br_rpm = np.round(br_rate)
+							hr_rpm = np.round(hr_rate)
+							print(f"Breathe Rate per minute: {br_rpm}")
+							print(f"Heart Rate per minute: {hr_rpm}")
 						elif np.mean(current_window_ebr) < 3000000000 and np.mean(current_window_ehr) > 300:
-							print("No Breath")
+							print("No Breath")					
 						elif np.mean(current_window_ebr) < 3000000000 and np.mean(current_window_ehr) < 300:
 							print("No People")
 				# Ctrl C 中斷

@@ -12,6 +12,7 @@ from scipy import signal
 from scipy.fftpack import fft
 import seaborn as sns
 from tqdm import tqdm
+from number_analyze import heart_analyze
 sns.set()
 
 def calculate_l1_loss(gt, pr):
@@ -506,6 +507,7 @@ if __name__ == '__main__':
     print("AVG TI  L1 lOSS",calculate_l1_loss(all_gt_array, all_ti_og_hr))
     print("Total sample：", sample_total)
     print("Total acc sample：", acc_sample_total)
+<<<<<<< HEAD
 =======
 '''
 現在的偵測的程式，一堆慮波
@@ -1031,3 +1033,9 @@ if __name__ == '__main__':
         # 資料分布
         data_distribution(all_pr_array, all_ti_og_hr, all_gt_array, current_type='h')  # current_type設定要畫哪種圖: 'h' = heart, 'b' = breath 
 >>>>>>> e888ceed35e32a2e4547e546b42db200c0638e34
+=======
+    print("------------------------------Ours----------------------------------------")
+    heart_analyze(all_pr_array, all_gt_array)
+    print("------------------------------TI------------------------------------------")
+    heart_analyze(all_ti_og_hr, all_gt_array)    
+>>>>>>> 2e46e2beb15dc4541e00d4040f95147aca42be49

@@ -95,11 +95,13 @@ def diagram(pr, ti, current_type):
 
 def data_distribution(data_pr, data_ti, data_gt, current_type):
     if current_type == 'h':
+        title_name = "Heart Rate"
         pr_array = range_hr(data_pr)
         ti_array = range_hr(data_ti)
         gt_array = range_hr(data_gt)
         candidates=['55~60', '60~65', '65~70', '70~75', '75~80', '80~85', '85~90', '90~95', '95~100', '100~105']
     elif current_type == 'b':
+        title_name = "Breathing Rate"
         pr_array = range_br(data_pr)
         ti_array = range_br(data_ti)
         gt_array = range_br(data_gt)
@@ -111,7 +113,7 @@ def data_distribution(data_pr, data_ti, data_gt, current_type):
     plt.bar(np.arange(len(pr_array)), pr_array, width=0.25, color='lightcoral')
     plt.title("our")
     plt.ylabel("Number")
-    plt.xlabel("Heart rate")
+    plt.xlabel(title_name)
 
     # TI預測
     plt.figure()
@@ -119,7 +121,7 @@ def data_distribution(data_pr, data_ti, data_gt, current_type):
     plt.bar(np.arange(len(ti_array)), ti_array, width=0.25, color='cornflowerblue')
     plt.title("TI")
     plt.ylabel("Number")
-    plt.xlabel("Heart rate")
+    plt.xlabel(title_name)
 
     # Ground Truth
     plt.figure()
@@ -127,7 +129,7 @@ def data_distribution(data_pr, data_ti, data_gt, current_type):
     plt.bar(np.arange(len(gt_array)), gt_array, width=0.25, color='g')
     plt.title("Ground Truth")
     plt.ylabel("Number")
-    plt.xlabel("Heart rate")
+    plt.xlabel(title_name)
 
     # 合在一起
     plt.figure()
@@ -138,7 +140,7 @@ def data_distribution(data_pr, data_ti, data_gt, current_type):
     plt.legend(['our', 'TI', 'Ground Truth'], loc='upper left')
     plt.title("Compare")
     plt.ylabel("Number")
-    plt.xlabel("Heart rate")
+    plt.xlabel(title_name)
 
     plt.show()
 '''

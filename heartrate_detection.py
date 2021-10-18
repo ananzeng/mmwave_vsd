@@ -443,7 +443,7 @@ if __name__ == '__main__':
     count = 0
     count_all = 0
     absolute_error = 0
-    disp = True
+    disp = False
     diagram_disp = True  # <新增> 是否顯示圖表
     all_pr_array = []
     all_gt_array = []

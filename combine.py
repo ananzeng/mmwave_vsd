@@ -315,16 +315,14 @@ if __name__ == "__main__":
 						time_Start = time_End
 
 						# 判別有沒有呼吸與有沒有人 (憋氣可以判別)
-						if np.mean(current_window_ebr) > 3000000000 and np.mean(current_window_ehr) > 300:
+						if np.mean(current_window_ebr) > 50000000 and np.mean(current_window_ehr) > 50:
 							br_rate = detect_Breath(current_window_sig, a[0][:])
 							hr_rate = detect_Breath(current_window_sig, a[1][:])
 							br_rpm = np.round(br_rate)
 							hr_rpm = np.round(hr_rate)
 							print(f"Breathe Rate per minute: {br_rpm}")
-							print(f"Heart Rate per minute: {hr_rpm}")
-						elif np.mean(current_window_ebr) < 3000000000 and np.mean(current_window_ehr) > 300:
-							print("No Breath")					
-						elif np.mean(current_window_ebr) < 3000000000 and np.mean(current_window_ehr) < 300:
+							print(f"Heart Rate per minute: {hr_rpm}")					
+						elif np.mean(current_window_ebr) < 50000000 and np.mean(current_window_ehr) < 50:
 							print("No People")
 				# Ctrl C 中斷
 				except KeyboardInterrupt:

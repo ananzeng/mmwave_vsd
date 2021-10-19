@@ -254,7 +254,7 @@ def caculate_breathrate(NT_points, NB_points):
     return 1200 / aver
 
 def detect_breath(unw_phase, count, disp):
-
+    replace = False
     # Unwrap phase
     raw = unw_phase
 
@@ -287,12 +287,20 @@ def detect_breath(unw_phase, count, disp):
     # print(f'Sum of remove impulse noise: {removed_noise}')
 
     # butter ellip cheby2
-    bandpass_sig = iir_bandpass_filter_1(new_phase_diff, 0.9, 1.9, 20, 9, "cheby2") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
+    bandpass_sig = iir_bandpass_filter_1(new_phase_diff, 0.8, 1.9, 20, 9, "cheby2") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
     # bandpass_sig = butter_bandpass_filter(new_phase_diff, 0.8, 2, 20, 5) # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
     # bandpass_sig = iir_bandpass_filter_1(bandpass_sig, 0.8, 2, 20, 5, "cheby1") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
     # bandpass_sig = firwin_filter(new_phase_diff, 0.8, 2, 20, 5)
     # bandpass_sig = lowpass_filter(bandpass_sig, 2, 2, 20, 5)
-
+    N = len(bandpass_sig)
+    T = 1 / 20
+    bps_fft = fft(bandpass_sig)
+    bps_fft_x = np.linspace(0, 1.0 / (T * 2), N // 2)    
+    #print(np.argmax(2 / N * np.abs(bps_fft[:N // 2])) * (1.0 / (T * 2)) / (N // 2))
+    index_of_fftmax = np.argmax(2 / N * np.abs(bps_fft[:N // 2])) * (1.0 / (T * 2)) / (N // 2)
+    print(index_of_fftmax)
+    if index_of_fftmax < 1.17:
+        replace = True
     # Smoothing signal
     smoothing_signal = MLR(bandpass_sig, 2)  # Breath = 9, Heart = 6, Delta = 1
     
@@ -435,7 +443,7 @@ def detect_breath(unw_phase, count, disp):
 
         plt.show()
 
-    return rate
+    return rate, replace
 
 if __name__ == '__main__':
 
@@ -444,7 +452,7 @@ if __name__ == '__main__':
     count_all = 0
     absolute_error = 0
     disp = False
-    diagram_disp = True  # <新增> 是否顯示圖表
+    diagram_disp = False  # <新增> 是否顯示圖表
     all_pr_array = []
     all_gt_array = []
     all_ti_og_br = []
@@ -481,7 +489,9 @@ if __name__ == '__main__':
                 ti_predict_array.append(int(np.mean(heart)))
                 sample_total += 1
                 for i in range (0, 800, 800):  # 0, 600, 1200
-                    result_rate = detect_breath(unwrapPhase[0 + i: 800 + i], count, disp)
+                    result_rate, replace1 = detect_breath(unwrapPhase[0 + i: 800 + i], count, disp)
+                    if replace1:
+                        result_rate = int(np.mean(heart))                    
                     predict_array.append(round(result_rate))
                     all_pr_array.append(round(result_rate))
                     if result_rate != None:

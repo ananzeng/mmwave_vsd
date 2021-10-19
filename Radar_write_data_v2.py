@@ -28,7 +28,7 @@ if __name__ == "__main__":
     vts = vitalsign_v2.VitalSign(port)
     # --------------------------------------------------
     folder='./dataset'									#資料庫名稱
-    name = 'yangzihong'
+    name = 'jay'
     distance = str(0.8)												#資料要放進哪個距離的資料夾
     people =  folder +'/'+ name 
     if not os.path.isdir(people):

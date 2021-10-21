@@ -440,8 +440,13 @@ def detect_breath(unw_phase, count, disp):
         print(np.argmax(2 / N * np.abs(bps_fft[:N // 2])) * (1.0 / (T * 2)) / (N // 2))
         plt.show()
 
-    return rate, replace
+    return rate, replace, index_of_fftmax
 
+def plot_scatter(all_index_of_fftmax, all_gt_array):
+    plt.xlabel('index_of_fftmax')
+    plt.ylabel('heartrate_groundtruth')
+    plt.scatter(all_index_of_fftmax, all_gt_array)
+    plt.show()
 
 if __name__ == '__main__':
 
@@ -450,11 +455,13 @@ if __name__ == '__main__':
     count_all = 0
     absolute_error = 0
     disp = False
-    diagram_disp = False  # <新增> 是否顯示圖表
+    diagram_disp = True  # <新增> 是否顯示圖表
+    scatter_disp = True
     all_pr_array = []
     all_gt_array = []
     all_ti_og_br = []
     all_ti_og_hr = []
+    all_index_of_fftmax = []
     sample_total = 0
     acc_sample_total = 0
     for user in tqdm(os.listdir("dataset")):
@@ -483,9 +490,10 @@ if __name__ == '__main__':
                 ti_predict_array.append(int(np.mean(breath)))
                 sample_total += 1
                 for i in range (0, 800, 800):  # 0, 600, 1200
-                    result_rate, replace1 = detect_breath(unwrapPhase[0 + i: 800 + i], count, disp)
+                    result_rate, replace1, index_of_fftmax = detect_breath(unwrapPhase[0 + i: 800 + i], count, disp)
                     if replace1:
                         result_rate = int(np.mean(breath))
+                    all_index_of_fftmax.append(index_of_fftmax)  
                     predict_array.append(round(result_rate))
                     all_pr_array.append(round(result_rate))
                     if result_rate != None:
@@ -524,3 +532,5 @@ if __name__ == '__main__':
 
         # 資料分布
         data_distribution(all_pr_array, all_ti_og_br, all_gt_array, current_type='b')  # current_type設定要畫哪種圖: 'h' = heart, 'b' = breath 
+    if scatter_disp:
+        plot_scatter(all_index_of_fftmax, all_gt_array)

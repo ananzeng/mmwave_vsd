@@ -13,6 +13,8 @@ import seaborn as sns
 from tqdm import tqdm
 from number_analyze import heart_analyze
 from losscal import *
+from mpl_toolkits.mplot3d import Axes3D
+
 sns.set()
 
 def calculate_l1_loss(gt, pr):
@@ -266,6 +268,8 @@ def detect_breath(unw_phase, count, disp):
             phase_diff.append(phase_diff_tmp)
 
     # RemoveImpulseNoise
+    std_of_phase_diff = np.std(np.array(phase_diff))
+    print("STD of phase_diff", std_of_phase_diff)
     new_phase_diff = np.copy(phase_diff)
     for i in range(1, int(len(phase_diff))-1):
         dataPrev2 = i - 1
@@ -287,7 +291,7 @@ def detect_breath(unw_phase, count, disp):
     # print(f'Sum of remove impulse noise: {removed_noise}')
 
     # butter ellip cheby2
-    bandpass_sig = iir_bandpass_filter_1(new_phase_diff, 0.8, 1.9, 20, 9, "cheby2") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
+    bandpass_sig = iir_bandpass_filter_1(new_phase_diff, 0.8, 2.1, 20, 9, "cheby2") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
     # bandpass_sig = butter_bandpass_filter(new_phase_diff, 0.8, 2, 20, 5) # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
     # bandpass_sig = iir_bandpass_filter_1(bandpass_sig, 0.8, 2, 20, 5, "cheby1") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
     # bandpass_sig = firwin_filter(new_phase_diff, 0.8, 2, 20, 5)
@@ -443,15 +447,67 @@ def detect_breath(unw_phase, count, disp):
 
         plt.show()
 
-    return rate, replace, index_of_fftmax
+    return rate, replace, index_of_fftmax, std_of_phase_diff
 
-def plot_scatter(all_index_of_fftmax, all_gt_array):
-    plt.xlabel('index_of_fftmax')
-    plt.ylabel('heartrate_groundtruth')
-    plt.scatter(all_index_of_fftmax, all_gt_array)
+def plot_scatter(all_index_of_fftmax,
+                all_gt_array, 
+                all_std_of_phase_diff, 
+                all_confidenceMetricHeartOut_std,
+                all_confidenceMetricHeartOut_4Hz_std,
+                all_confidenceMetricHeartOut_xCorr_std,
+                all_confidenceMetricHeartOut_mean,
+                all_confidenceMetricHeartOut_4Hz_mean,
+                all_confidenceMetricHeartOut_xCorr_mean,
+                all_heartRateEst_FFT_std,all_heartRateEst_FFT_mean,
+                all_heartRateEst_FFT_4Hz_std, all_heartRateEst_FFT_4Hz_mean,
+                all_heartRateEst_xCorr_std, all_heartRateEst_xCorr_mean,
+                all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean):      
+     
+    all_data = [all_index_of_fftmax,
+                all_confidenceMetricHeartOut_std, all_confidenceMetricHeartOut_4Hz_std, 
+                all_confidenceMetricHeartOut_xCorr_std, all_confidenceMetricHeartOut_mean,
+                all_confidenceMetricHeartOut_4Hz_mean, all_confidenceMetricHeartOut_xCorr_mean,
+                all_heartRateEst_FFT_std,all_heartRateEst_FFT_mean,
+                all_heartRateEst_FFT_4Hz_std, all_heartRateEst_FFT_4Hz_mean,
+                all_heartRateEst_xCorr_std, all_heartRateEst_xCorr_mean,
+                all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean]
+    all_data = np.array(all_data).transpose()
+
+    from sklearn.feature_selection import SelectKBest
+    from sklearn.feature_selection import chi2
+    from sklearn.model_selection import train_test_split
+    from sklearn.ensemble import RandomForestRegressor
+
+    model1 = SelectKBest(chi2, k = "all")#选择k个最佳特征
+    k_result = model1.fit_transform(all_data, all_gt_array)#iris.data是特征数据，iris.target是标签数据，该函数可以选择出k个特征 
+    print("卡方檢定特徵值：", model1.scores_)
+
+    X_train,X_test,y_train,y_test = train_test_split(all_data, all_gt_array, test_size=0.5, random_state = 69)  
+    print("len of train data：", len(y_train))
+    print("len of test data：", len(y_test))  
+
+    rf = RandomForestRegressor(n_estimators = 1000, random_state = 69)
+    rf.fit(X_train, y_train)
+    predictions = rf.predict(X_test)
+    round_to_whole = [round(num) for num in predictions]
+
+    print("predict of RandomForest", round_to_whole)
+    print("groundtruth", y_test)
+    print("L1 Loss of RandomForest", calculate_l1_loss(y_test, round_to_whole))
+    '''
+    ax1 = plt.subplot(projection='3d')  # 创建一个三维的绘图工程
+    ax1.scatter(all_gt_array, all_index_of_fftmax, all_confidenceMetricHeartOut_xCorr_mean, c='g')  # 绘制数据点,颜色是红色
+    ax1.set_xlabel('heartrate_groundtruth')  # 坐标轴
+    ax1.set_ylabel('index_of_fftmax')
+    ax1.set_zlabel('all_confidenceMetricHeartOut_xCorr_mean')
     plt.show()
 
-
+    for index, i in enumerate(all_heartRateEst_xCorr_mean):
+        plt.xlabel('all_heartRateEst_xCorr_mean')
+        plt.ylabel('heartrate_groundtruth')
+        plt.scatter(all_heartRateEst_xCorr_mean[index], all_gt_array[index], c = "green") #color
+    #plt.show()
+    '''
 if __name__ == '__main__':
 
     # Initial setting
@@ -466,6 +522,24 @@ if __name__ == '__main__':
     all_ti_og_br = []
     all_ti_og_hr = []
     all_index_of_fftmax = []
+    all_rangeBin_index = []
+    all_std_of_phase_diff = []
+    all_heartRateEst_FFT_std = []
+    all_heartRateEst_FFT_mean = []
+    all_heartRateEst_FFT_4Hz_std = []
+    all_heartRateEst_FFT_4Hz_mean = []
+    all_heartRateEst_xCorr_std = []
+    all_heartRateEst_xCorr_mean = []
+    all_heartRateEst_peakCount_std = []
+    all_heartRateEst_peakCount_mean = []
+
+    all_confidenceMetricHeartOut_std = []
+    all_confidenceMetricHeartOut_4Hz_std = []
+    all_confidenceMetricHeartOut_xCorr_std = []
+    all_confidenceMetricHeartOut_mean = []
+    all_confidenceMetricHeartOut_4Hz_mean = []
+    all_confidenceMetricHeartOut_xCorr_mean = []
+
     sample_total = 0
     acc_sample_total = 0
     for user in tqdm(os.listdir("dataset")):
@@ -491,20 +565,51 @@ if __name__ == '__main__':
                 unwrapPhase = vitial_sig['unwrapPhasePeak_mm'].values
                 heart = vitial_sig['rsv[1]'].values
                 breath = vitial_sig['rsv[0]'].values
-                # confidenceMetricHeartOut = vitial_sig['confidenceMetricHeartOut'].values
-                # confidenceMetricHeartOut_4Hz = vitial_sig['confidenceMetricHeartOut_4Hz'].values
-                # confidenceMetricHeartOut_xCorr = vitial_sig['confidenceMetricHeartOut_xCorr'].values
+                rangeBin_index = np.std(vitial_sig['rangeBinIndexPhase'].values)
+
+                heartRateEst_FFT_std = np.std(vitial_sig['heartRateEst_FFT'].values)
+                heartRateEst_FFT_mean = np.mean(vitial_sig['heartRateEst_FFT'].values)
+                heartRateEst_FFT_4Hz_std = np.std(vitial_sig['heartRateEst_FFT_4Hz'].values)
+                heartRateEst_FFT_4Hz_mean = np.mean(vitial_sig['heartRateEst_FFT_4Hz'].values)
+                heartRateEst_xCorr_std = np.std(vitial_sig['heartRateEst_xCorr'].values)
+                heartRateEst_xCorr_mean = np.mean(vitial_sig['heartRateEst_xCorr'].values)
+                heartRateEst_peakCount_std = np.std(vitial_sig['heartRateEst_peakCount'].values)
+                heartRateEst_peakCount_mean = np.mean(vitial_sig['heartRateEst_peakCount'].values)
+                confidenceMetricHeartOut_std = np.std(vitial_sig['confidenceMetricHeartOut'].values)
+                confidenceMetricHeartOut_4Hz_std = np.std(vitial_sig['confidenceMetricHeartOut_4Hz'].values)
+                confidenceMetricHeartOut_xCorr_std = np.std(vitial_sig['confidenceMetricHeartOut_xCorr'].values)
+                confidenceMetricHeartOut_mean = np.mean(vitial_sig['confidenceMetricHeartOut'].values)
+                confidenceMetricHeartOut_4Hz_mean = np.mean(vitial_sig['confidenceMetricHeartOut_4Hz'].values)
+                confidenceMetricHeartOut_xCorr_mean = np.mean(vitial_sig['confidenceMetricHeartOut_xCorr'].values)
+
                 all_ti_og_hr.append(int(np.mean(heart)))
                 ti_predict_array.append(int(np.mean(heart)))
                 sample_total += 1
                 for i in range (0, 800, 800):  # 0, 600, 1200
-                    result_rate, replace1 ,index_of_fftmax = detect_breath(unwrapPhase[0 + i: 800 + i], count, disp)
+                    result_rate, replace1, index_of_fftmax, std_of_phase_diff = detect_breath(unwrapPhase[0 + i: 800 + i], count, disp)
                     if replace1:
                         result_rate = int(np.mean(heart))  
-                        
-                    all_index_of_fftmax.append(index_of_fftmax)              
+
+                    all_std_of_phase_diff.append(std_of_phase_diff)
+                    all_index_of_fftmax.append(index_of_fftmax)
+                    all_rangeBin_index.append(rangeBin_index)      
                     predict_array.append(round(result_rate))
                     all_pr_array.append(round(result_rate))
+                    all_confidenceMetricHeartOut_std.append(confidenceMetricHeartOut_std)
+                    all_confidenceMetricHeartOut_4Hz_std.append(confidenceMetricHeartOut_4Hz_std)
+                    all_confidenceMetricHeartOut_xCorr_std.append(confidenceMetricHeartOut_xCorr_std)
+                    all_confidenceMetricHeartOut_mean.append(confidenceMetricHeartOut_mean)
+                    all_confidenceMetricHeartOut_4Hz_mean.append(confidenceMetricHeartOut_4Hz_mean)
+                    all_confidenceMetricHeartOut_xCorr_mean.append(confidenceMetricHeartOut_xCorr_mean)
+                    all_heartRateEst_FFT_std.append(heartRateEst_FFT_std)
+                    all_heartRateEst_FFT_mean.append(heartRateEst_FFT_mean)
+                    all_heartRateEst_FFT_4Hz_std.append(heartRateEst_FFT_4Hz_std)
+                    all_heartRateEst_FFT_4Hz_mean.append(heartRateEst_FFT_4Hz_mean)
+                    all_heartRateEst_xCorr_std.append(heartRateEst_xCorr_std)
+                    all_heartRateEst_xCorr_mean.append(heartRateEst_xCorr_mean)
+                    all_heartRateEst_peakCount_std.append(heartRateEst_peakCount_std)
+                    all_heartRateEst_peakCount_mean.append(heartRateEst_peakCount_mean)
+
                     if result_rate != None:
                         # absolute_error = absolute_error + abs(16 - result_rate)
                         count_all += 1
@@ -543,4 +648,17 @@ if __name__ == '__main__':
         # 資料分布
         data_distribution(all_pr_array, all_ti_og_hr, all_gt_array, current_type='h')  # current_type設定要畫哪種圖: 'h' = heart, 'b' = breath 
     if scatter_disp:
-        plot_scatter(all_index_of_fftmax, all_gt_array)
+        plot_scatter(
+            all_index_of_fftmax,
+            all_gt_array, 
+            all_std_of_phase_diff, 
+            all_confidenceMetricHeartOut_std,
+            all_confidenceMetricHeartOut_4Hz_std,
+            all_confidenceMetricHeartOut_xCorr_std,
+            all_confidenceMetricHeartOut_mean,
+            all_confidenceMetricHeartOut_4Hz_mean,
+            all_confidenceMetricHeartOut_xCorr_mean,
+            all_heartRateEst_FFT_std,all_heartRateEst_FFT_mean,
+            all_heartRateEst_FFT_4Hz_std, all_heartRateEst_FFT_4Hz_mean,
+            all_heartRateEst_xCorr_std, all_heartRateEst_xCorr_mean,
+            all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean)

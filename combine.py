@@ -219,6 +219,9 @@ def caculate_breathrate(NT_points,NB_points):#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     return 1200 / aver    #因為一個周期是20Hz所以時間就是1/20，然後是算每分鐘，所以還要再除以1/60
 
 def detect_Breath(unw_phase, a): #,lowHz
+	replace = False
+	N = 0
+	T = 0
 	# Phase difference
 	phase_diff = Phase_difference(unw_phase)
 
@@ -230,6 +233,13 @@ def detect_Breath(unw_phase, a): #,lowHz
 
 	# Bandpass signal (cheby2)
 	bandpass_sig = iir_bandpass_filter_1(amp_sig, float(a[1]), float(a[2]), int(a[3]), int(a[4]), "cheby2") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
+	N = len(bandpass_sig)
+	T = 1 / 20
+	bps_fft = fft(bandpass_sig)
+	bps_fft_x = np.linspace(0, 1.0 / (T * 2), N // 2)
+	index_of_fftmax = np.argmax(2 / N * np.abs(bps_fft[:N // 2])) * (1.0 / (T * 2)) / (N // 2)
+	if index_of_fftmax < 1.17:
+		replace = True
 
 	# Smoothing signal
 	smoothing_signal = MLR(bandpass_sig, int(a[5]))  # Breath = 9, Heart = 6, Delta = 1
@@ -248,7 +258,7 @@ def detect_Breath(unw_phase, a): #,lowHz
 	NT_points, NB_points = candidate_search(smoothing_signal, compress_feature, int(a[7]))  # breath = 18 hreat = 4 ex: 7
 
 	rate = caculate_breathrate(NT_points, NB_points)
-	return rate 
+	return rate, replace, index_of_fftmax
 
 # mmWave toolbox
 # def uartGetTLVdata():
@@ -290,6 +300,7 @@ if __name__ == "__main__":
 	raw_sig = []  # 訊號的窗格
 	energe_br = []  # 呼吸能量的窗格
 	energe_hr = []  # 心跳能量的窗格
+	heart_ti = []
 	coco = True  # 時間開關
 	a = [[1.5, 0.125, 0.55, 20, 5, 2, 22, 17], [1.5, 0.9, 1.9, 20, 9, 2, 5, 4]]
 	a = np.array(a)
@@ -302,6 +313,7 @@ if __name__ == "__main__":
 			raw_sig.append(vsdata.unwrapPhasePeak_mm)
 			energe_br.append(vsdata.sumEnergyBreathWfm)
 			energe_hr.append(vsdata.sumEnergyHeartWfm)
+			heart_ti.append(vsdata.rsv[1])
 			time_End = time.time()
 			if coco:
 				print(f"Elapsed time (sec): {time_End - time_Start}")
@@ -310,14 +322,17 @@ if __name__ == "__main__":
 					current_window_sig = raw_sig[-40*20:]
 					current_window_ebr = energe_br[-3*20:]
 					current_window_ehr = energe_hr[-3*20:]
+					current_heart_ti = heart_ti[-40*20:]
 					if time_End - time_Start >= 1:
 						coco = False
 						time_Start = time_End
 
 						# 判別有沒有呼吸與有沒有人 (憋氣可以判別)
 						if np.mean(current_window_ebr) > 50000000 and np.mean(current_window_ehr) > 50:
-							br_rate = detect_Breath(current_window_sig, a[0][:])
-							hr_rate = detect_Breath(current_window_sig, a[1][:])
+							br_rate, replace1 ,index_of_fftmax = detect_Breath(current_window_sig, a[0][:])
+							hr_rate, replace1 ,index_of_fftmax = detect_Breath(current_window_sig, a[1][:])
+							if replace1:
+								result_rate = int(np.mean(np.array(current_heart_ti))) 
 							br_rpm = np.round(br_rate)
 							hr_rpm = np.round(hr_rate)
 							print(f"Breathe Rate per minute: {br_rpm}")

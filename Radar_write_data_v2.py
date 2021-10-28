@@ -28,7 +28,7 @@ if __name__ == "__main__":
     vts = vitalsign_v2.VitalSign(port)
     # --------------------------------------------------
     folder='./dataset'									#資料庫名稱
-    name = 'jay'
+    name = '1022test'
     distance = str(0.8)												#資料要放進哪個距離的資料夾
     people =  folder +'/'+ name 
     if not os.path.isdir(people):
@@ -125,3 +125,4 @@ if __name__ == "__main__":
         f = open(path_data_txt_br, 'w')
         f.write(str(input_gt_br))
         f.close()
+    print("現在有", str(len(os.listdir(people2_gt_br))), "資料")

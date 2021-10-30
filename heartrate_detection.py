@@ -449,7 +449,7 @@ def detect_breath(unw_phase, count, disp):
 
     return rate, replace, index_of_fftmax, std_of_phase_diff
 
-def plot_scatter(all_index_of_fftmax,
+def plot_scatter(predict_array, all_index_of_fftmax,
                 all_gt_array, 
                 all_std_of_phase_diff, 
                 all_confidenceMetricHeartOut_std,
@@ -461,34 +461,53 @@ def plot_scatter(all_index_of_fftmax,
                 all_heartRateEst_FFT_std,all_heartRateEst_FFT_mean,
                 all_heartRateEst_FFT_4Hz_std, all_heartRateEst_FFT_4Hz_mean,
                 all_heartRateEst_xCorr_std, all_heartRateEst_xCorr_mean,
-                all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean):      
+                all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean,
+                all_sumEnergyBreathWfm_mean, 
+                all_sumEnergyBreathWfm_std, 
+                all_sumEnergyHeartWfm_mean, 
+                all_sumEnergyHeartWfm_std):      
      
-    all_data = [all_index_of_fftmax,
+    all_data = [predict_array, all_index_of_fftmax,
                 all_confidenceMetricHeartOut_std, all_confidenceMetricHeartOut_4Hz_std, 
                 all_confidenceMetricHeartOut_xCorr_std, all_confidenceMetricHeartOut_mean,
                 all_confidenceMetricHeartOut_4Hz_mean, all_confidenceMetricHeartOut_xCorr_mean,
                 all_heartRateEst_FFT_std,all_heartRateEst_FFT_mean,
                 all_heartRateEst_FFT_4Hz_std, all_heartRateEst_FFT_4Hz_mean,
                 all_heartRateEst_xCorr_std, all_heartRateEst_xCorr_mean,
-                all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean]
-    all_data = np.array(all_data).transpose()
+                all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean,
+                all_sumEnergyBreathWfm_mean, 
+                all_sumEnergyBreathWfm_std, 
+                all_sumEnergyHeartWfm_mean, 
+                all_sumEnergyHeartWfm_std]
+
+    all_data = pd.DataFrame(all_data).T
+    # all_data.columns = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20']
+    # print(all_data.corr(method='spearman'))
+    # all_data = all_data[['0', '2', '10', '16']]
+    # print(all_data[['0','1','9','15']])
 
     from sklearn.feature_selection import SelectKBest
     from sklearn.feature_selection import chi2
     from sklearn.model_selection import train_test_split
     from sklearn.ensemble import RandomForestRegressor
+    from sklearn import preprocessing
 
-    model1 = SelectKBest(chi2, k = "all")#选择k个最佳特征
-    k_result = model1.fit_transform(all_data, all_gt_array)#iris.data是特征数据，iris.target是标签数据，该函数可以选择出k个特征 
-    print("卡方檢定特徵值：", model1.scores_)
+    all_data = preprocessing.scale(all_data)
+    # model1 = SelectKBest(chi2, k = "all")  # 选择k个最佳特征
+    #k_result = model1.fit_transform(all_data, all_gt_array)  # iris.data是特征数据，iris.target是标签数据，该函数可以选择出k个特征 
+    # print("卡方檢定特徵值：", model1.scores_)
 
-    X_train,X_test,y_train,y_test = train_test_split(all_data, all_gt_array, test_size=0.5, random_state = 69)  
+    X_train,X_test,y_train,y_test = train_test_split(all_data, all_gt_array, test_size=0.2, random_state = 69)  
     print("len of train data：", len(y_train))
     print("len of test data：", len(y_test))  
 
-    rf = RandomForestRegressor(n_estimators = 1000, random_state = 69)
-    rf.fit(X_train, y_train)
-    predictions = rf.predict(X_test)
+    import xgboost as xgb
+    xgbrmodel = xgb.XGBRegressor(n_estimators = 6000, max_depth=500, learning_rate=0.1, min_child_weight=1, subsample=0.8, colsample_bytree=0.8, gamma=0, reg_lambda=1)
+    xgbrmodel.fit(X_train, y_train)
+    predictions = xgbrmodel.predict(X_test)
+    # rf = RandomForestRegressor(n_estimators = 1000, random_state = 69)
+    # rf.fit(X_train, y_train)
+    #predictions = rf.predict(X_test)
     round_to_whole = [round(num) for num in predictions]
 
     print("predict of RandomForest", round_to_whole)
@@ -540,6 +559,12 @@ if __name__ == '__main__':
     all_confidenceMetricHeartOut_4Hz_mean = []
     all_confidenceMetricHeartOut_xCorr_mean = []
 
+    all_sumEnergyBreathWfm_mean = []
+    all_sumEnergyBreathWfm_std = []
+
+    all_sumEnergyHeartWfm_mean = []
+    all_sumEnergyHeartWfm_std = []
+
     sample_total = 0
     acc_sample_total = 0
     for user in tqdm(os.listdir("dataset")):
@@ -569,18 +594,30 @@ if __name__ == '__main__':
 
                 heartRateEst_FFT_std = np.std(vitial_sig['heartRateEst_FFT'].values)
                 heartRateEst_FFT_mean = np.mean(vitial_sig['heartRateEst_FFT'].values)
+
                 heartRateEst_FFT_4Hz_std = np.std(vitial_sig['heartRateEst_FFT_4Hz'].values)
                 heartRateEst_FFT_4Hz_mean = np.mean(vitial_sig['heartRateEst_FFT_4Hz'].values)
+
                 heartRateEst_xCorr_std = np.std(vitial_sig['heartRateEst_xCorr'].values)
                 heartRateEst_xCorr_mean = np.mean(vitial_sig['heartRateEst_xCorr'].values)
+
                 heartRateEst_peakCount_std = np.std(vitial_sig['heartRateEst_peakCount'].values)
                 heartRateEst_peakCount_mean = np.mean(vitial_sig['heartRateEst_peakCount'].values)
+
                 confidenceMetricHeartOut_std = np.std(vitial_sig['confidenceMetricHeartOut'].values)
-                confidenceMetricHeartOut_4Hz_std = np.std(vitial_sig['confidenceMetricHeartOut_4Hz'].values)
-                confidenceMetricHeartOut_xCorr_std = np.std(vitial_sig['confidenceMetricHeartOut_xCorr'].values)
                 confidenceMetricHeartOut_mean = np.mean(vitial_sig['confidenceMetricHeartOut'].values)
+
+                confidenceMetricHeartOut_4Hz_std = np.std(vitial_sig['confidenceMetricHeartOut_4Hz'].values)
                 confidenceMetricHeartOut_4Hz_mean = np.mean(vitial_sig['confidenceMetricHeartOut_4Hz'].values)
+
+                confidenceMetricHeartOut_xCorr_std = np.std(vitial_sig['confidenceMetricHeartOut_xCorr'].values)
                 confidenceMetricHeartOut_xCorr_mean = np.mean(vitial_sig['confidenceMetricHeartOut_xCorr'].values)
+
+                sumEnergyBreathWfm_mean = np.mean(vitial_sig['sumEnergyBreathWfm'].values)
+                sumEnergyBreathWfm_std = np.std(vitial_sig['sumEnergyBreathWfm'].values)
+
+                sumEnergyHeartWfm_mean = np.mean(vitial_sig['sumEnergyHeartWfm'].values)
+                sumEnergyHeartWfm_std = np.std(vitial_sig['sumEnergyHeartWfm'].values)
 
                 all_ti_og_hr.append(int(np.mean(heart)))
                 ti_predict_array.append(int(np.mean(heart)))
@@ -592,7 +629,7 @@ if __name__ == '__main__':
 
                     all_std_of_phase_diff.append(std_of_phase_diff)
                     all_index_of_fftmax.append(index_of_fftmax)
-                    all_rangeBin_index.append(rangeBin_index)      
+                    all_rangeBin_index.append(rangeBin_index)
                     predict_array.append(round(result_rate))
                     all_pr_array.append(round(result_rate))
                     all_confidenceMetricHeartOut_std.append(confidenceMetricHeartOut_std)
@@ -610,6 +647,10 @@ if __name__ == '__main__':
                     all_heartRateEst_peakCount_std.append(heartRateEst_peakCount_std)
                     all_heartRateEst_peakCount_mean.append(heartRateEst_peakCount_mean)
 
+                    all_sumEnergyBreathWfm_mean.append(sumEnergyBreathWfm_mean)
+                    all_sumEnergyBreathWfm_std.append(sumEnergyBreathWfm_std)
+                    all_sumEnergyHeartWfm_mean.append(sumEnergyHeartWfm_mean)
+                    all_sumEnergyHeartWfm_std.append(sumEnergyHeartWfm_std)
                     if result_rate != None:
                         # absolute_error = absolute_error + abs(16 - result_rate)
                         count_all += 1
@@ -647,8 +688,11 @@ if __name__ == '__main__':
 
         # 資料分布
         data_distribution(all_pr_array, all_ti_og_hr, all_gt_array, current_type='h')  # current_type設定要畫哪種圖: 'h' = heart, 'b' = breath 
+    
+    # ML
     if scatter_disp:
         plot_scatter(
+            predict_array,
             all_index_of_fftmax,
             all_gt_array, 
             all_std_of_phase_diff, 
@@ -661,4 +705,8 @@ if __name__ == '__main__':
             all_heartRateEst_FFT_std,all_heartRateEst_FFT_mean,
             all_heartRateEst_FFT_4Hz_std, all_heartRateEst_FFT_4Hz_mean,
             all_heartRateEst_xCorr_std, all_heartRateEst_xCorr_mean,
-            all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean)
+            all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean, 
+            all_sumEnergyBreathWfm_mean, 
+            all_sumEnergyBreathWfm_std, 
+            all_sumEnergyHeartWfm_mean, 
+            all_sumEnergyHeartWfm_std)

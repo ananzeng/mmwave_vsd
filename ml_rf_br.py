@@ -35,7 +35,7 @@ all_data_str = ["all_index_of_fftmax",
             "all_sumEnergyHeartWfm_std"]
 def ml_algorithm(X_train, y_train, X_test, y_test, all_data, all_gt_array):   
     kfold_test = True
-    
+    #all_data = preprocessing.scale(all_data)
     if kfold_test:
         print("-----------------------------K-Fold-----------------------------------")
         kf = StratifiedKFold(n_splits = 10, random_state = 69, shuffle = True)

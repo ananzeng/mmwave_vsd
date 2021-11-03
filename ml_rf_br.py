@@ -22,37 +22,54 @@ from sklearn import svm
 from sklearn.model_selection import KFold,StratifiedKFold
 
 all_data_str = ["all_index_of_fftmax", 
-            "all_confidenceMetricHeartOut_std", "all_confidenceMetricHeartOut_4Hz_std", 
-            "all_confidenceMetricHeartOut_xCorr_std", "all_confidenceMetricHeartOut_mean",
-            "all_confidenceMetricHeartOut_4Hz_mean", "all_confidenceMetricHeartOut_xCorr_mean",
-            "all_heartRateEst_FFT_std","all_heartRateEst_FFT_mean",
-            "all_heartRateEst_FFT_4Hz_std", "all_heartRateEst_FFT_4Hz_mean",
-            "all_heartRateEst_xCorr_std", "all_heartRateEst_xCorr_mean",
-            "all_heartRateEst_peakCount_std", "all_heartRateEst_peakCount_mean",
-            "all_sumEnergyBreathWfm_mean", 
-            "all_sumEnergyBreathWfm_std", 
-            "all_sumEnergyHeartWfm_mean", 
-            "all_sumEnergyHeartWfm_std"]
+                "all_confidenceMetricBreathOut_std", "all_confidenceMetricBreathOut_xCorr_std",
+                "all_confidenceMetricBreathOut_mean", "all_confidenceMetricBreathOut_xCorr_mean",
+                "all_breathingRateEst_FFT_std", "all_breathingRateEst_FFT_mean",
+                "all_breathingEst_xCorr_std", "all_breathingEst_xCorr_mean",
+                "all_breathingEst_peakCount_std", "all_breathingEst_peakCount_mean",
+                "all_sumEnergyBreathWfm_mean", 
+                "all_sumEnergyBreathWfm_std", 
+                "all_sumEnergyHeartWfm_mean", 
+                "all_sumEnergyHeartWfm_std"]
+
+
 def ml_algorithm(X_train, y_train, X_test, y_test, all_data, all_gt_array):   
     kfold_test = True
+    plot = True
+    importances_array = np.zeros(len(all_data_str))
     #all_data = preprocessing.scale(all_data)
     if kfold_test:
         print("-----------------------------K-Fold-----------------------------------")
-        kf = StratifiedKFold(n_splits = 10, random_state = 69, shuffle = True)
+        kf = StratifiedKFold(n_splits = 3, random_state = 69, shuffle = True)
         kfold_result_array = []
         for train_index, test_index in kf.split(all_data, all_gt_array):
-            print("TRAIN:", train_index)
-            print("TEST:", test_index)
+            #print("TRAIN:", train_index)
+            #print("TEST:", test_index)
             X_train1, X_test1 = all_data[train_index], all_data[test_index]
             y_train1, y_test1 = all_gt_array[train_index], all_gt_array[test_index]
             rf = RandomForestRegressor(n_estimators = 100, random_state = 69, n_jobs = -1, min_samples_leaf = 3, min_samples_split = 5)
             rf.fit(X_train1, y_train1)
             predictions = rf.predict(X_test1)
+            importances = rf.feature_importances_
+            for index, i in enumerate(importances):
+                #print(all_data_str[index], importances[index])
+                importances_array[index] += importances[index]
             round_to_whole = [round(num) for num in predictions]
             kfold = calculate_l1_loss(y_test1, round_to_whole)
             kfold_result_array.append(kfold)
             print("L1 Loss of RandomForest", kfold)
         print("avg l1 loss:", np.mean(np.array(kfold_result_array)))
+        importances_array = importances_array / 10
+        print("最前面的3個feature")
+        [print(all_data_str[i], importances_array[i]) for i in importances.argsort()[-3:]]
+        if plot:
+            plt.figure(figsize=(10,5))
+            plt_x = importances_array
+            plt_y = all_data_str
+            plt.barh(plt_y, plt_x)
+            plt.title('feature')
+            plt.yticks(fontsize = 5)
+            plt.show()
     else:
         rf = RandomForestRegressor(n_estimators = 100, random_state = 69, n_jobs = -1, min_samples_leaf = 3, min_samples_split = 5)
         rf.fit(X_train, y_train)

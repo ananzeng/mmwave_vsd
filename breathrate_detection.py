@@ -10,7 +10,13 @@ import seaborn as sns
 from tqdm import tqdm
 from number_analyze import breath_analyze
 from losscal import *
-
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import KFold,StratifiedKFold
+from sklearn import svm
+from sklearn.model_selection import GridSearchCV
+import pickle #pickle模組
+from sklearn import preprocessing
+from sklearn.ensemble import RandomForestRegressor
 sns.set()
 
 def calculate_l1_loss(gt, pr):
@@ -292,7 +298,7 @@ def detect_breath(unw_phase, count, disp):
     N = len(bandpass_sig)
     T = 1 / 20
     bps_fft = fft(bandpass_sig)
-    bps_fft_x = np.linspace(0, 1.0 / (T * 2), N // 2)    
+    bps_fft_x = np.linspace(0, 1.0 / (T * 2), N // 2)   
     #print(np.argmax(2 / N * np.abs(bps_fft[:N // 2])) * (1.0 / (T * 2)) / (N // 2))
     index_of_fftmax = np.argmax(2 / N * np.abs(bps_fft[:N // 2])) * (1.0 / (T * 2)) / (N // 2)
     print(index_of_fftmax)
@@ -442,11 +448,127 @@ def detect_breath(unw_phase, count, disp):
 
     return rate, replace, index_of_fftmax
 
-def plot_scatter(all_index_of_fftmax, all_gt_array):
-    plt.xlabel('index_of_fftmax')
+def plot_scatter(
+            all_index_of_fftmax,
+            all_gt_array, 
+            all_confidenceMetricBreathOut_std,
+            all_confidenceMetricBreathOut_xCorr_std,
+            all_confidenceMetricBreathOut_mean,
+            all_confidenceMetricBreathOut_xCorr_mean,
+            all_breathingRateEst_FFT_std,all_breathingRateEst_FFT_mean,
+            all_breathingEst_xCorr_std, all_breathingEst_xCorr_mean,
+            all_breathingEst_peakCount_std, all_breathingEst_peakCount_mean, 
+            all_sumEnergyBreathWfm_mean, 
+            all_sumEnergyBreathWfm_std, 
+            all_sumEnergyHeartWfm_mean, 
+            all_sumEnergyHeartWfm_std):
+    plt.xlabel('all_breathingEst_xCorr_mean')
     plt.ylabel('heartrate_groundtruth')
-    plt.scatter(all_index_of_fftmax, all_gt_array)
+    plt.scatter(all_breathingEst_xCorr_mean, all_gt_array)
     plt.show()
+#all_breathingRateEst_FFT_mean, all_breathingEst_xCorr_mean
+def knn_test(
+            predict_array,
+            all_index_of_fftmax,
+            all_gt_array, 
+            all_confidenceMetricBreathOut_std,
+            all_confidenceMetricBreathOut_xCorr_std,
+            all_confidenceMetricBreathOut_mean,
+            all_confidenceMetricBreathOut_xCorr_mean,
+            all_breathingRateEst_FFT_std,all_breathingRateEst_FFT_mean,
+            all_breathingEst_xCorr_std, all_breathingEst_xCorr_mean,
+            all_breathingEst_peakCount_std, all_breathingEst_peakCount_mean, 
+            all_sumEnergyBreathWfm_mean, 
+            all_sumEnergyBreathWfm_std, 
+            all_sumEnergyHeartWfm_mean, 
+            all_sumEnergyHeartWfm_std,
+            test_array1, test_array2, all_ti_og_br):
+    find_best = False
+
+    all_data = [
+            all_index_of_fftmax,
+            all_confidenceMetricBreathOut_std,
+            all_confidenceMetricBreathOut_xCorr_std,
+            all_confidenceMetricBreathOut_mean,
+            all_confidenceMetricBreathOut_xCorr_mean,
+            all_breathingRateEst_FFT_std,all_breathingRateEst_FFT_mean,
+            all_breathingEst_xCorr_std, all_breathingEst_xCorr_mean,
+            all_breathingEst_peakCount_std, all_breathingEst_peakCount_mean, 
+            all_sumEnergyBreathWfm_mean, 
+            all_sumEnergyBreathWfm_std, 
+            all_sumEnergyHeartWfm_mean, 
+            all_sumEnergyHeartWfm_std, all_ti_og_br]
+    all_data = [all_index_of_fftmax, all_breathingEst_xCorr_mean, all_breathingRateEst_FFT_mean]
+    all_data = np.array(all_data).transpose()
+    all_data = preprocessing.scale(all_data)
+
+    label_knn = []
+    for index, i in enumerate(all_gt_array): #做ml分類的label
+        if all_gt_array[index] <= 15:
+            label_knn.append(1)
+        else:
+            label_knn.append(0)
+    label_knn = np.array(label_knn)
+    test_array1 = np.array(test_array1)
+    test_array2 = np.array(test_array2)
+    all_gt_array = np.array(all_gt_array)
+    all_ti_og_br = np.array(all_ti_og_br)
+    kf = StratifiedKFold(n_splits = 3, random_state = 69, shuffle = True)
+    knn_p = []
+    svm_p = []
+    rf_p = []
+    ti_replace_result_kf_number =  [] #算K-FOLD用的
+    og_result_kf_number = []
+    for train_index, test_index in kf.split(all_data, label_knn):
+
+        X_train, X_test = all_data[train_index], all_data[test_index]
+        y_train, y_test = label_knn[train_index], label_knn[test_index]
+        og_result_kf = test_array1[test_index] #最原始的算法輸出
+        ti_replace_result_kf = test_array2[test_index] #TI取代的算法輸出
+        gt_kf = all_gt_array[test_index]  #GT
+        all_ti_og_kf = all_ti_og_br[test_index] #TI 原始輸出
+
+        #print("TI Tr取代：", calculate_l1_loss(gt_kf, ti_replace_result_kf))   
+        ti_replace_result_kf_number.append(calculate_l1_loss(gt_kf, ti_replace_result_kf))    
+
+        neigh = KNeighborsClassifier(n_neighbors = 5, weights = 'distance')
+        neigh.fit(X_train, y_train)
+        knn_p.append(neigh.score(X_test,y_test))
+
+        clf_rbf = svm.SVC(kernel="rbf", C = 5, gamma = 0.01, random_state = 69)
+        clf_rbf.fit(X_train, y_train) #用TRAIN資料下去訓練
+        svm_p.append(clf_rbf.score(X_test,y_test))
+
+        rf = RandomForestRegressor(n_estimators = 20, random_state = 69)
+        rf.fit(X_train, y_train)
+        rf_p.append(rf.score(X_test,y_test))
+
+        y_test_pre_rbf = clf_rbf.predict(X_test) #用TEST下去預測
+        for index, x in enumerate(y_test_pre_rbf):
+            if x == 1: #如果SVM輸出1代表心跳小於70
+                og_result_kf[index] = all_ti_og_kf[index] #就用TI原始輸出替代最原始的算法輸出
+                
+        #print("TI SVM取代：", calculate_l1_loss(gt_kf, og_result_kf))   
+        og_result_kf_number.append(calculate_l1_loss(gt_kf, og_result_kf))     
+
+    print("AVG knn 分類表現 ", np.mean(np.array(knn_p)))
+    print("AVG svm 分類表現 ", np.mean(np.array(svm_p)))
+    print("AVG rf 分類表現 ", np.mean(np.array(rf_p)))
+    print("AVG TI Tr取代：", np.mean(np.array(ti_replace_result_kf_number)))
+    print("AVG TI SVM取代：", np.mean(np.array(og_result_kf_number)))
+
+    clf_rbf = svm.SVC(kernel="rbf", C = 5, gamma = 0.01, random_state = 69)
+    clf_rbf.fit(all_data, label_knn)   
+    with open('save/svm_br.pickle', 'wb') as f:
+        pickle.dump(clf_rbf, f)
+    if find_best:
+        parameters = {'gamma': [0.001, 0.01, 0.1, 1, 5, 10], 'C':[0.001, 0.01, 0.1, 1, 5, 10], 'degree':[3, 4, 5], 'kernel': ["rbf", "linear"]}
+        #parameters = {'kernel': ["rbf", "poly", "linear"]}
+        #n_jobs =-1使用全部CPU并行多线程搜索
+        gs = GridSearchCV(svm.SVC(), parameters, refit = True, cv = 3, verbose = 1, n_jobs = -1)
+        gs.fit(all_data, label_knn) #Run fit with all sets of parameters.
+        print('最优参数: ',gs.best_params_)
+        print('最佳性能: ', gs.best_score_)
 
 if __name__ == '__main__':
 
@@ -455,13 +577,33 @@ if __name__ == '__main__':
     count_all = 0
     absolute_error = 0
     disp = False
-    diagram_disp = True  # <新增> 是否顯示圖表
-    scatter_disp = True
+    diagram_disp = False  # <新增> 是否顯示圖表
+    scatter_disp = False
+    knn = True
     all_pr_array = []
     all_gt_array = []
     all_ti_og_br = []
     all_ti_og_hr = []
     all_index_of_fftmax = []
+
+    all_std_of_phase_diff = []
+    all_breathingRateEst_FFT_std = []
+    all_breathingRateEst_FFT_mean = []
+    all_breathingEst_xCorr_std = []
+    all_breathingEst_xCorr_mean = []
+    all_breathingEst_peakCount_std = []
+    all_breathingEst_peakCount_mean = []
+
+    all_confidenceMetricBreathOut_std = []
+    all_confidenceMetricBreathOut_xCorr_std = []
+    all_confidenceMetricBreathOut_mean = []
+    all_confidenceMetricBreathOut_xCorr_mean = []
+    all_sumEnergyBreathWfm_mean = []
+    all_sumEnergyBreathWfm_std = []
+    all_sumEnergyHeartWfm_mean = []
+    all_sumEnergyHeartWfm_std = []
+    test_array1 = []#原始算法輸出
+    test_array2 = []#ti輸出值輸出(Tr)
     sample_total = 0
     acc_sample_total = 0
     for user in tqdm(os.listdir("dataset")):
@@ -486,14 +628,47 @@ if __name__ == '__main__':
                 unwrapPhase = vitial_sig['unwrapPhasePeak_mm'].values
                 heart = vitial_sig['rsv[1]'].values
                 breath = vitial_sig['rsv[0]'].values
+
+                confidenceMetricBreathOut_std = np.std(vitial_sig['confidenceMetricBreathOut'].values)
+                confidenceMetricBreathOut_xCorr_std = np.std(vitial_sig['confidenceMetricBreathOut_xCorr'].values)
+                confidenceMetricBreathOut_mean = np.mean(vitial_sig['confidenceMetricBreathOut'].values)
+                confidenceMetricBreathOut_xCorr_mean = np.mean(vitial_sig['confidenceMetricBreathOut_xCorr'].values)
+                breathingRateEst_FFT_std = np.std(vitial_sig['breathingRateEst_FFT'].values)
+                breathingRateEst_FFT_mean = np.mean(vitial_sig['breathingRateEst_FFT'].values)
+                breathingEst_xCorr_std = np.std(vitial_sig['breathingEst_xCorr'].values)
+                breathingEst_xCorr_mean = np.mean(vitial_sig['breathingEst_xCorr'].values)
+                breathingEst_peakCount_std = np.std(vitial_sig['breathingEst_peakCount'].values)
+                breathingEst_peakCount_mean = np.mean(vitial_sig['breathingEst_peakCount'].values)
+                sumEnergyBreathWfm_mean = np.mean(vitial_sig['sumEnergyBreathWfm'].values)
+                sumEnergyBreathWfm_std = np.std(vitial_sig['sumEnergyBreathWfm'].values)
+                sumEnergyHeartWfm_mean = np.mean(vitial_sig['sumEnergyHeartWfm'].values)
+                sumEnergyHeartWfm_std = np.std(vitial_sig['sumEnergyHeartWfm'].values)
+
                 all_ti_og_br.append(int(np.mean(breath)))
                 ti_predict_array.append(int(np.mean(breath)))
                 sample_total += 1
                 for i in range (0, 800, 800):  # 0, 600, 1200
                     result_rate, replace1, index_of_fftmax = detect_breath(unwrapPhase[0 + i: 800 + i], count, disp)
+                    test_array1.append(round(result_rate))
                     if replace1:
                         result_rate = int(np.mean(breath))
                     all_index_of_fftmax.append(index_of_fftmax)  
+                    test_array2.append(round(result_rate))
+                    all_confidenceMetricBreathOut_std.append(confidenceMetricBreathOut_std)
+                    all_confidenceMetricBreathOut_xCorr_std.append(confidenceMetricBreathOut_xCorr_std)
+                    all_confidenceMetricBreathOut_mean.append(confidenceMetricBreathOut_mean)
+                    all_confidenceMetricBreathOut_xCorr_mean.append(confidenceMetricBreathOut_xCorr_mean)
+                    all_breathingRateEst_FFT_std.append(breathingRateEst_FFT_std)
+                    all_breathingRateEst_FFT_mean.append(breathingRateEst_FFT_mean)
+                    all_breathingEst_xCorr_std.append(breathingEst_xCorr_std)
+                    all_breathingEst_xCorr_mean.append(breathingEst_xCorr_mean)
+                    all_breathingEst_peakCount_std.append(breathingEst_peakCount_std)
+                    all_breathingEst_peakCount_mean.append(breathingEst_peakCount_mean)
+                    all_sumEnergyBreathWfm_mean.append(sumEnergyBreathWfm_mean)
+                    all_sumEnergyBreathWfm_std.append(sumEnergyBreathWfm_std)
+                    all_sumEnergyHeartWfm_mean.append(sumEnergyHeartWfm_mean)
+                    all_sumEnergyHeartWfm_std.append(sumEnergyHeartWfm_std)
+
                     predict_array.append(round(result_rate))
                     all_pr_array.append(round(result_rate))
                     if result_rate != None:
@@ -533,4 +708,34 @@ if __name__ == '__main__':
         # 資料分布
         data_distribution(all_pr_array, all_ti_og_br, all_gt_array, current_type='b')  # current_type設定要畫哪種圖: 'h' = heart, 'b' = breath 
     if scatter_disp:
-        plot_scatter(all_index_of_fftmax, all_gt_array)
+        plot_scatter(
+            all_index_of_fftmax,
+            all_gt_array, 
+            all_confidenceMetricBreathOut_std,
+            all_confidenceMetricBreathOut_xCorr_std,
+            all_confidenceMetricBreathOut_mean,
+            all_confidenceMetricBreathOut_xCorr_mean,
+            all_breathingRateEst_FFT_std,all_breathingRateEst_FFT_mean,
+            all_breathingEst_xCorr_std, all_breathingEst_xCorr_mean,
+            all_breathingEst_peakCount_std, all_breathingEst_peakCount_mean, 
+            all_sumEnergyBreathWfm_mean, 
+            all_sumEnergyBreathWfm_std, 
+            all_sumEnergyHeartWfm_mean, 
+            all_sumEnergyHeartWfm_std)
+    if knn:
+        knn_test(
+            predict_array,
+            all_index_of_fftmax,
+            all_gt_array, 
+            all_confidenceMetricBreathOut_std,
+            all_confidenceMetricBreathOut_xCorr_std,
+            all_confidenceMetricBreathOut_mean,
+            all_confidenceMetricBreathOut_xCorr_mean,
+            all_breathingRateEst_FFT_std,all_breathingRateEst_FFT_mean,
+            all_breathingEst_xCorr_std, all_breathingEst_xCorr_mean,
+            all_breathingEst_peakCount_std, all_breathingEst_peakCount_mean, 
+            all_sumEnergyBreathWfm_mean, 
+            all_sumEnergyBreathWfm_std, 
+            all_sumEnergyHeartWfm_mean, 
+            all_sumEnergyHeartWfm_std,
+            test_array1, test_array2, all_ti_og_br)

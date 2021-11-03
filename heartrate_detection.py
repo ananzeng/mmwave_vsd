@@ -15,6 +15,18 @@ from number_analyze import heart_analyze
 from losscal import *
 from mpl_toolkits.mplot3d import Axes3D
 
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn import preprocessing
+import xgboost as xgb
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import KFold,StratifiedKFold
+from sklearn import svm
+from sklearn.model_selection import GridSearchCV
+import pickle #pickle模組
+
 sns.set()
 
 def calculate_l1_loss(gt, pr):
@@ -269,7 +281,7 @@ def detect_breath(unw_phase, count, disp):
 
     # RemoveImpulseNoise
     std_of_phase_diff = np.std(np.array(phase_diff))
-    print("STD of phase_diff", std_of_phase_diff)
+    #print("STD of phase_diff", std_of_phase_diff)
     new_phase_diff = np.copy(phase_diff)
     for i in range(1, int(len(phase_diff))-1):
         dataPrev2 = i - 1
@@ -291,7 +303,7 @@ def detect_breath(unw_phase, count, disp):
     # print(f'Sum of remove impulse noise: {removed_noise}')
 
     # butter ellip cheby2
-    bandpass_sig = iir_bandpass_filter_1(new_phase_diff, 0.8, 2.1, 20, 9, "cheby2") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
+    bandpass_sig = iir_bandpass_filter_1(new_phase_diff, 0.8, 1.9, 20, 9, "cheby2") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
     # bandpass_sig = butter_bandpass_filter(new_phase_diff, 0.8, 2, 20, 5) # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
     # bandpass_sig = iir_bandpass_filter_1(bandpass_sig, 0.8, 2, 20, 5, "cheby1") # Breath: 0.1 ~ 0.33 order=5, Hreat: 0.8 ~ 2.3
     # bandpass_sig = firwin_filter(new_phase_diff, 0.8, 2, 20, 5)
@@ -482,12 +494,6 @@ def ml_algorithm(predict_array, all_index_of_fftmax,
 
     all_data = pd.DataFrame(all_data).T
 
-    from sklearn.feature_selection import SelectKBest
-    from sklearn.feature_selection import chi2
-    from sklearn.model_selection import train_test_split
-    from sklearn.ensemble import RandomForestRegressor
-    from sklearn import preprocessing
-    import xgboost as xgb
 
     X_train,X_test,y_train,y_test = train_test_split(all_data, all_gt_array, test_size=0.5, random_state = 69)   
     print(X_train.shape)
@@ -517,18 +523,123 @@ def scatter_plot(predict_array, all_index_of_fftmax,
                 all_sumEnergyBreathWfm_std, 
                 all_sumEnergyHeartWfm_mean, 
                 all_sumEnergyHeartWfm_std):  
+     
     ax1 = plt.subplot(projection='3d')  # 创建一个三维的绘图工程
-    ax1.scatter(all_gt_array, all_index_of_fftmax, all_confidenceMetricHeartOut_xCorr_mean, c='g')  # 绘制数据点,颜色是红色
-    ax1.set_xlabel('heartrate_groundtruth')  # 坐标轴
+    for index, i in enumerate(all_heartRateEst_xCorr_mean):
+        if all_gt_array[index] <= 70:
+            ax1.scatter(all_heartRateEst_xCorr_mean[index], all_index_of_fftmax[index], all_heartRateEst_FFT_mean[index], c='r')  # 绘制数据点,颜色是红色
+        else:
+            ax1.scatter(all_heartRateEst_xCorr_mean[index], all_index_of_fftmax[index], all_heartRateEst_FFT_mean[index], c='b')  # 绘制数据点,颜色是红色
+    ax1.set_xlabel('all_heartRateEst_xCorr_mean')  # 坐标轴
     ax1.set_ylabel('index_of_fftmax')
-    ax1.set_zlabel('all_confidenceMetricHeartOut_xCorr_mean')
+    ax1.set_zlabel('all_heartRateEst_FFT_mean')
+    plt.show()
+
+    for index, i in enumerate(all_sumEnergyHeartWfm_std):
+        plt.xlabel('all_sumEnergyHeartWfm_std')
+        plt.ylabel('heartrate_groundtruth')
+        plt.scatter(all_sumEnergyHeartWfm_std[index], all_gt_array[index], c = "b") #color
     plt.show()
 
     for index, i in enumerate(all_heartRateEst_xCorr_mean):
-        plt.xlabel('all_heartRateEst_xCorr_mean')
+        plt.xlabel('all_index_of_fftmax')
         plt.ylabel('heartrate_groundtruth')
-        plt.scatter(all_heartRateEst_xCorr_mean[index], all_gt_array[index], c = "green") #color
+        if all_index_of_fftmax[index] <= 1.17 and all_gt_array[index] <= 70:
+            plt.scatter(all_index_of_fftmax[index], all_gt_array[index], c = "g") #color
+        elif all_index_of_fftmax[index] <= 1.17 and all_gt_array[index] > 70:
+            plt.scatter(all_index_of_fftmax[index], all_gt_array[index], c = "r") #color
+        elif all_index_of_fftmax[index] > 1.17 and all_gt_array[index] <= 70:
+            plt.scatter(all_index_of_fftmax[index], all_gt_array[index], c = "y") #color
+        else:
+            plt.scatter(all_index_of_fftmax[index], all_gt_array[index], c = "b") #color
     plt.show()
+
+def knn_test(
+            predict_array,
+            all_index_of_fftmax,
+            all_gt_array, 
+            all_std_of_phase_diff, 
+            all_confidenceMetricHeartOut_std,
+            all_confidenceMetricHeartOut_4Hz_std,
+            all_confidenceMetricHeartOut_xCorr_std,
+            all_confidenceMetricHeartOut_mean,
+            all_confidenceMetricHeartOut_4Hz_mean,
+            all_confidenceMetricHeartOut_xCorr_mean,
+            all_heartRateEst_FFT_std,all_heartRateEst_FFT_mean,
+            all_heartRateEst_FFT_4Hz_std, all_heartRateEst_FFT_4Hz_mean,
+            all_heartRateEst_xCorr_std, all_heartRateEst_xCorr_mean,
+            all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean, 
+            all_sumEnergyBreathWfm_mean, 
+            all_sumEnergyBreathWfm_std, 
+            all_sumEnergyHeartWfm_mean, 
+            all_sumEnergyHeartWfm_std,
+            test_array1, test_array2, all_ti_og_hr):
+    find_best = False
+
+    all_data = [
+            all_index_of_fftmax,all_heartRateEst_FFT_mean,all_heartRateEst_xCorr_mean]
+    all_data = np.array(all_data).transpose()
+    label_knn = []
+    for index, i in enumerate(all_gt_array): #做ml分類的label
+        if all_gt_array[index] <= 70:
+            label_knn.append(1)
+        else:
+            label_knn.append(0)
+    label_knn = np.array(label_knn)
+    test_array1 = np.array(test_array1)
+    test_array2 = np.array(test_array2)
+    all_gt_array = np.array(all_gt_array)
+    all_ti_og_hr = np.array(all_ti_og_hr)
+    kf = StratifiedKFold(n_splits = 3, random_state = 69, shuffle = True)
+    knn_p = []#knn的表現平均
+    svm_p = []#svm的表現平均
+    ti_replace_result_kf_number =  [] #算K-FOLD用的
+    og_result_kf_number = []   #算K-FOLD用的
+    for train_index, test_index in kf.split(all_data, label_knn):
+
+        X_train, X_test = all_data[train_index], all_data[test_index]
+        y_train, y_test = label_knn[train_index], label_knn[test_index]
+        og_result_kf = test_array1[test_index] #最原始的算法輸出
+        ti_replace_result_kf = test_array2[test_index] #TI取代的算法輸出
+        gt_kf = all_gt_array[test_index]  #GT
+        all_ti_og_kf = all_ti_og_hr[test_index] #TI 原始輸出
+
+        #print("TI Tr取代：", calculate_l1_loss(gt_kf, ti_replace_result_kf))   
+        ti_replace_result_kf_number.append(calculate_l1_loss(gt_kf, ti_replace_result_kf))    
+
+        neigh = KNeighborsClassifier(n_neighbors = 5, weights = 'distance')
+        neigh.fit(X_train, y_train)
+        knn_p.append(neigh.score(X_test,y_test))
+
+        clf_rbf = svm.SVC(kernel="rbf", C = 1, gamma = 0.1, random_state = 69)
+        clf_rbf.fit(X_train, y_train) #用TRAIN資料下去訓練
+        svm_p.append(clf_rbf.score(X_test,y_test))
+
+        y_test_pre_rbf = clf_rbf.predict(X_test) #用TEST下去預測
+        for index, x in enumerate(y_test_pre_rbf):
+            if x == 1: #如果SVM輸出1代表心跳小於70
+                og_result_kf[index] = all_ti_og_kf[index] #就用TI原始輸出替代最原始的算法輸出
+                
+        #print("TI SVM取代：", calculate_l1_loss(gt_kf, og_result_kf))   
+        og_result_kf_number.append(calculate_l1_loss(gt_kf, og_result_kf))     
+
+    #print("AVG knn 分類表現 ", np.mean(np.array(knn_p)))
+    #print("AVG svm 分類表現 ", np.mean(np.array(svm_p)))
+    print("AVG TI Tr取代：", np.mean(np.array(ti_replace_result_kf_number)))
+    print("AVG TI SVM取代：", np.mean(np.array(og_result_kf_number)))
+
+    clf_rbf = svm.SVC(kernel="rbf", C = 1, gamma = 0.1, random_state = 69)
+    clf_rbf.fit(all_data, label_knn) #用所有資料下去訓練
+    with open('save/svm_hr.pickle', 'wb') as f:
+        pickle.dump(clf_rbf, f)
+    if find_best:
+        parameters = {'gamma': [0.001, 0.01, 0.1, 1, 5, 10], 'C':[0.001, 0.01, 0.1, 1, 5, 10], 'degree':[3, 4, 5], 'kernel': ["rbf", "linear"]}
+        #parameters = {'kernel': ["rbf", "poly", "linear"]}
+        #n_jobs =-1使用全部CPU并行多线程搜索
+        gs = GridSearchCV(svm.SVC(), parameters, refit = True, cv = 3, verbose = 1, n_jobs = -1)
+        gs.fit(all_data, label_knn) #Run fit with all sets of parameters.
+        print('最优参数: ',gs.best_params_)
+        print('最佳性能: ', gs.best_score_)
 
 if __name__ == '__main__':
 
@@ -538,8 +649,9 @@ if __name__ == '__main__':
     absolute_error = 0
     disp = False
     diagram_disp = False  # <新增> 是否顯示圖表
-    scatter_disp = True
-    ml = True
+    scatter_disp = False
+    ml = False
+    knn = True
     all_pr_array = []
     all_gt_array = []
     all_ti_og_br = []
@@ -569,6 +681,8 @@ if __name__ == '__main__':
     all_sumEnergyHeartWfm_mean = []
     all_sumEnergyHeartWfm_std = []
 
+    test_array1 = []#原始算法輸出
+    test_array2 = []#ti輸出值輸出(Tr)
     sample_total = 0
     acc_sample_total = 0
     for user in tqdm(os.listdir("dataset")):
@@ -628,9 +742,17 @@ if __name__ == '__main__':
                 sample_total += 1
                 for i in range (0, 800, 800):  # 0, 600, 1200
                     result_rate, replace1, index_of_fftmax, std_of_phase_diff = detect_breath(unwrapPhase[0 + i: 800 + i], count, disp)
+                    #with open('save/svm_hr.pickle', 'rb') as f:
+                        #neigh = pickle.load(f)
+                        #測試讀取後的Model
+                        #print("svm_predict ", neigh.predict(([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])))
+                        #knn_predict = neigh.predict([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])
+                        #if knn_predict == 1:
+                        #    result_rate = int(np.mean(heart))  
+                    test_array1.append(round(result_rate))
                     if replace1:
                         result_rate = int(np.mean(heart))  
-
+                    test_array2.append(round(result_rate))
                     all_std_of_phase_diff.append(std_of_phase_diff)
                     all_index_of_fftmax.append(index_of_fftmax)
                     all_rangeBin_index.append(rangeBin_index)
@@ -734,3 +856,24 @@ if __name__ == '__main__':
             all_sumEnergyBreathWfm_std, 
             all_sumEnergyHeartWfm_mean, 
             all_sumEnergyHeartWfm_std)
+    if knn:
+        knn_test(
+            predict_array,
+            all_index_of_fftmax,
+            all_gt_array, 
+            all_std_of_phase_diff, 
+            all_confidenceMetricHeartOut_std,
+            all_confidenceMetricHeartOut_4Hz_std,
+            all_confidenceMetricHeartOut_xCorr_std,
+            all_confidenceMetricHeartOut_mean,
+            all_confidenceMetricHeartOut_4Hz_mean,
+            all_confidenceMetricHeartOut_xCorr_mean,
+            all_heartRateEst_FFT_std,all_heartRateEst_FFT_mean,
+            all_heartRateEst_FFT_4Hz_std, all_heartRateEst_FFT_4Hz_mean,
+            all_heartRateEst_xCorr_std, all_heartRateEst_xCorr_mean,
+            all_heartRateEst_peakCount_std, all_heartRateEst_peakCount_mean, 
+            all_sumEnergyBreathWfm_mean, 
+            all_sumEnergyBreathWfm_std, 
+            all_sumEnergyHeartWfm_mean, 
+            all_sumEnergyHeartWfm_std,
+            test_array1, test_array2, all_ti_og_hr)

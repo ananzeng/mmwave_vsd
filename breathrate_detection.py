@@ -577,7 +577,7 @@ if __name__ == '__main__':
     count_all = 0
     absolute_error = 0
     disp = False
-    diagram_disp = False  # <新增> 是否顯示圖表
+    diagram_disp = False   # <新增> 是否顯示圖表
     scatter_disp = False
     knn = True
     all_pr_array = []

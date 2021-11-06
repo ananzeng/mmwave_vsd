@@ -15,17 +15,6 @@ import time
 import vitalsign_v2
 import datetime
 
-# class globalV:
-# 	count = 0
-# 	hr = 0.0
-# 	br = 0.0
-# 	def __init__(self, count):
-# 		self.count = count
-
-# port = serial.Serial("COM3",baudrate = 921600, timeout = 0.5)
-# gv = globalV(0)
-# vts = vitalsign.VitalSign(port)
-
 def Phase_difference(unwarp_phase):
 	phase_diff = []
 	for tmp in range(len(unwarp_phase)):
@@ -218,7 +207,7 @@ def caculate_breathrate(NT_points,NB_points):#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         aver = (np.mean(aver_NB) + np.mean(aver_NT)) / 2
     return 1200 / aver    #因為一個周期是20Hz所以時間就是1/20，然後是算每分鐘，所以還要再除以1/60
 
-def detect_Breath(unw_phase, a): #,lowHz
+def detect_Breath(unw_phase, a, status): #,lowHz
 	replace = False
 	N = 0
 	T = 0
@@ -238,8 +227,12 @@ def detect_Breath(unw_phase, a): #,lowHz
 	bps_fft = fft(bandpass_sig)
 	bps_fft_x = np.linspace(0, 1.0 / (T * 2), N // 2)
 	index_of_fftmax = np.argmax(2 / N * np.abs(bps_fft[:N // 2])) * (1.0 / (T * 2)) / (N // 2)
-	if index_of_fftmax < 1.17:
-		replace = True
+	if status == "br":
+		if index_of_fftmax < 1.17:
+			replace = True
+	elif status == "hr":
+		if index_of_fftmax < 0.215:
+			replace = True		
 
 	# Smoothing signal
 	smoothing_signal = MLR(bandpass_sig, int(a[5]))  # Breath = 9, Heart = 6, Delta = 1
@@ -259,21 +252,6 @@ def detect_Breath(unw_phase, a): #,lowHz
 
 	rate = caculate_breathrate(NT_points, NB_points)
 	return rate, replace, index_of_fftmax
-
-# mmWave toolbox
-# def uartGetTLVdata():
-# 	br_array = deque(maxlen=300)
-# 	for i in range(300):
-# 		br_array.append(0)
-
-# 	port.flushInput()
-# 	while True:
-# 		(dck , vd, rangeBuf) = vts.tlvRead(False)
-# 		vs = vts.getHeader()
-# 		if dck:
-# 			#print("unwrapPhasePeak_mm:{0:.4f}".format(vd.unwrapPhasePeak_mm))
-# 			br_array.append(vd.unwrapPhasePeak_mm)
-# 			print(detect_Breath(br_array))
 
 def timing(sec):
 	print(f"Get ready in {sec} seconds...")
@@ -329,8 +307,8 @@ if __name__ == "__main__":
 
 						# 判別有沒有呼吸與有沒有人 (憋氣可以判別)
 						if np.mean(current_window_ebr) > 50000000 and np.mean(current_window_ehr) > 50:
-							br_rate, replace1 ,index_of_fftmax = detect_Breath(current_window_sig, a[0][:])
-							hr_rate, replace1 ,index_of_fftmax = detect_Breath(current_window_sig, a[1][:])
+							br_rate, replace1 ,index_of_fftmax = detect_Breath(current_window_sig, a[0][:], status="br")
+							hr_rate, replace1 ,index_of_fftmax = detect_Breath(current_window_sig, a[1][:], status="hr")
 							if replace1:
 								result_rate = int(np.mean(np.array(current_heart_ti))) 
 							br_rpm = np.round(br_rate)
@@ -342,12 +320,3 @@ if __name__ == "__main__":
 				# Ctrl C 中斷
 				except KeyboardInterrupt:
 					print("Interrupt")
-
-	# ground_truth_txt='./dataset/a1.txt'
-	# ground_truth = np.loadtxt(ground_truth_txt)
-	# for i in range(0,600,300):
-	# 	points=detect_Breath(ground_truth[0+ i:300+ i])
-	# 	print(points)
-	# uartGetTLVdata()
-
-

@@ -269,7 +269,7 @@ if __name__ == "__main__":
 	energe_hr = []  # 心跳能量的窗格
 	heart_ti = []  #TI心跳
 	breath_ti = []  #TI呼吸
-	coco = True  # 時間開關
+	coco = False  # 時間開關
 	a = [[1.5, 0.125, 0.55, 20, 5, 2, 22, 17], [1.5, 0.9, 1.9, 20, 9, 2, 5, 4]]
 	a = np.array(a)
 	print("Recoding data...")
@@ -280,6 +280,8 @@ if __name__ == "__main__":
 			ct = datetime.datetime.now()
 			heartRateEst_FFT_mean = np.mean(vsdata.heartRateEst_FFT)
 			heartRateEst_xCorr_mean = np.mean(vsdata.heartRateEst_xCorr)
+			breathingEst_FFT_mean = np.mean(vsdata.breathingRateEst_FFT)
+			breathingEst_xCorr_mean = np.mean(vsdata.breathingEst_xCorr)
 			raw_sig.append(vsdata.unwrapPhasePeak_mm)
 			energe_br.append(vsdata.sumEnergyBreathWfm)
 			energe_hr.append(vsdata.sumEnergyHeartWfm)
@@ -296,26 +298,27 @@ if __name__ == "__main__":
 					current_heart_ti = heart_ti[-40*20:]
 					current_breath_ti = breath_ti[-40*20:]
 					if time_End - time_Start >= 1:
-						coco = False
 						time_Start = time_End
 
 						# 判別有沒有呼吸與有沒有人 (憋氣可以判別)
 						if np.mean(current_window_ebr) > 50000000 and np.mean(current_window_ehr) > 50:
-							br_rate, replace1 ,index_of_fftmax = detect_Breath(current_window_sig, a[0][:])
+							br_rate ,index_of_fftmax = detect_Breath(current_window_sig, a[0][:])
 							with open('save/svm_br_office_all.pickle', 'rb') as f:
 								clf = pickle.load(f)
-								print("br_svm_predict ", clf.predict(([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])))
-								svm_predict = clf.predict([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])
+								#print("br_svm_predict ", clf.predict(([[index_of_fftmax,breathingEst_FFT_mean,breathingEst_xCorr_mean]])))
+								svm_predict = clf.predict([[index_of_fftmax,breathingEst_FFT_mean,breathingEst_xCorr_mean]])
 								if svm_predict == 1:
-								    br_rate = int(np.mean(current_breath_ti))
+									print("SVM USE!")
+									br_rate = int(np.mean(current_breath_ti))
 
-							hr_rate, replace1 ,index_of_fftmax = detect_Breath(current_window_sig, a[1][:])
+							hr_rate ,index_of_fftmax = detect_Breath(current_window_sig, a[1][:])
 							with open('save/svm_hr_office_all.pickle', 'rb') as f:
 								clf = pickle.load(f)
-								print("hr_svm_predict ", clf.predict(([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])))
+								#print("hr_svm_predict ", clf.predict(([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])))
 								svm_predict = clf.predict([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])
 								if svm_predict == 1:
-								    hr_rate = int(np.mean(current_heart_ti))
+									print("SVM USE!")
+									hr_rate = int(np.mean(current_heart_ti))
 
 							br_rpm = np.round(br_rate)
 							hr_rpm = np.round(hr_rate)

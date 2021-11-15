@@ -19,7 +19,8 @@ def read_txt(path):
     return data
 
 if __name__ == "__main__":
-    time.sleep(5)
+    coco = True  # 時間開關
+    time.sleep(4)
     print("111111111111111111111111111111111111111111111")
     time.sleep(1)
     # Data initial
@@ -44,7 +45,6 @@ if __name__ == "__main__":
     heart_ti = []  #TI心跳
     breath_ti = []  #TI呼吸
     port.flushInput() #丟棄接收緩存中的所有數據
-    time_Start = time.time()
     #--------------------write csv-----------------------
     data_number = str(int(len(os.listdir( folder +'/'+ name +'/'+ distance +'/'))/2)) #錄製的哪一筆資料
     path_data = folder +'/'+ name +'/'+ distance +'/'+ data_number +".csv"
@@ -61,38 +61,42 @@ if __name__ == "__main__":
         writer = csv.writer(csvFile, dialect = "excel")
         writer.writerow(['rangeBinInde'])
     count = 0    
+    
+    print("Recoding data...")
+    time_Start = time.time()
     while True:
-
         (dck , vd, rangeBuf) = vts.tlv_read(False)  #是否顯示[Message TLV header]
         vs = vts.getHeader()
-        datetime_dt = datetime.datetime.today()# 獲得當地時間
-        ct = datetime_dt.strftime("%H:%M:%S")  # 格式化日期
-        #ct = datetime.datetime.now()
-
-        raw_sig.append(vd.unwrapPhasePeak_mm)
-        energe_br.append(vd.sumEnergyBreathWfm)
-        energe_hr.append(vd.sumEnergyHeartWfm)
-        heartRateEst_FFT_mean = np.mean(vd.heartRateEst_FFT)
-        heartRateEst_xCorr_mean = np.mean(vd.heartRateEst_xCorr)
-        breathingEst_FFT_mean = np.mean(vd.breathingRateEst_FFT)
-        breathingEst_xCorr_mean = np.mean(vd.breathingEst_xCorr)
-        heart_ti.append(vd.rsv[1])
-        breath_ti.append(vd.rsv[0])
-        a = [[1.5, 0.125, 0.55, 20, 5, 2, 22, 17], [1.5, 0.9, 1.9, 20, 9, 2, 5, 4]]
-        a = np.array(a)
-        hr_rate = 0
-        br_rate = 0
         if dck:
-            with open(path_data, 'a',newline='') as csvFile:
-                writer = csv.writer(csvFile, dialect = "excel")
-                writer.writerow([vd.rangeBinIndexMax,vd.rangeBinIndexPhase,vd.maxVal,vd.processingCyclesOut,vd.processingCyclesOut1,
+            datetime_dt = datetime.datetime.today()# 獲得當地時間
+            ct = datetime_dt.strftime("%H:%M:%S")  # 格式化日期
+            #ct = datetime.datetime.now()
+            raw_sig.append(vd.unwrapPhasePeak_mm)
+            energe_br.append(vd.sumEnergyBreathWfm)
+            energe_hr.append(vd.sumEnergyHeartWfm)
+            heartRateEst_FFT_mean = np.mean(vd.heartRateEst_FFT)
+            heartRateEst_xCorr_mean = np.mean(vd.heartRateEst_xCorr)
+            breathingEst_FFT_mean = np.mean(vd.breathingRateEst_FFT)
+            breathingEst_xCorr_mean = np.mean(vd.breathingEst_xCorr)
+            heart_ti.append(vd.rsv[1])
+            breath_ti.append(vd.rsv[0])
+            a = [[1.5, 0.125, 0.55, 20, 5, 2, 22, 17], [1.5, 0.9, 1.9, 20, 9, 2, 5, 4]]
+            a = np.array(a)
+            hr_rate = 0
+            br_rate = 0
+            time_End = time.time()
+            if coco:
+                print(f"Elapsed time (sec): {time_End - time_Start}")
+            if len(raw_sig) >= 10*20:
+                with open(path_data, 'a',newline='') as csvFile:
+                    writer = csv.writer(csvFile, dialect = "excel")
+                    writer.writerow([vd.rangeBinIndexMax,vd.rangeBinIndexPhase,vd.maxVal,vd.processingCyclesOut,vd.processingCyclesOut1,
                                     vd.rangeBinStartIndex,vd.rangeBinEndIndex,vd.unwrapPhasePeak_mm,vd.outputFilterBreathOut,vd.outputFilterHeartOut,
                                     vd.heartRateEst_FFT,vd.heartRateEst_FFT_4Hz,vd.heartRateEst_xCorr,vd.heartRateEst_peakCount,vd.breathingRateEst_FFT,
                                     vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
                                     vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
-                                    vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct, 0 ,0])
-            time_End = time.time()
-            if len(raw_sig) >= 40 * 20:
+                                   vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct, 0 ,0])
+                coco = False
                 try:
                     current_window_sig = raw_sig[-40*20:]
                     current_window_ebr = energe_br[-3*20:]

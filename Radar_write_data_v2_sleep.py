@@ -87,10 +87,10 @@ if __name__ == "__main__":
             hr_rate = 0
             br_rate = 0
             time_End = time.time()
+            # 計時 40 s
             if coco:
                 print(f"Elapsed time (sec): {round(time_End - time_Start, 3)}")
                 
-
             if len(raw_sig) <= 40*20:
                 with open(path_data, 'a',newline='') as csvFile:
                     writer = csv.writer(csvFile, dialect = "excel")
@@ -103,15 +103,6 @@ if __name__ == "__main__":
             elif len(raw_sig) > 40*20:
                 coco = False
                 try:
-                    with open(path_data, 'a',newline='') as csvFile:
-                        writer = csv.writer(csvFile, dialect = "excel")
-                        writer.writerow([vd.rangeBinIndexMax,vd.rangeBinIndexPhase,vd.maxVal,vd.processingCyclesOut,vd.processingCyclesOut1,
-                                        vd.rangeBinStartIndex,vd.rangeBinEndIndex,vd.unwrapPhasePeak_mm,vd.outputFilterBreathOut,vd.outputFilterHeartOut,
-                                        vd.heartRateEst_FFT,vd.heartRateEst_FFT_4Hz,vd.heartRateEst_xCorr,vd.heartRateEst_peakCount,vd.breathingRateEst_FFT,
-                                        vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
-                                        vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
-                                        vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct, 0 ,0])
-
                     current_window_sig = raw_sig[-40*20:]
                     raw_sig.pop(0)
                     current_heart_ti = heart_ti[-40*20:]
@@ -157,7 +148,15 @@ if __name__ == "__main__":
                                                 vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
                                                 vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
                                                 vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct, hr_rpm, br_rpm])
-
+                    else:
+                        with open(path_data, 'a',newline='') as csvFile:
+                            writer = csv.writer(csvFile, dialect = "excel")
+                            writer.writerow([vd.rangeBinIndexMax,vd.rangeBinIndexPhase,vd.maxVal,vd.processingCyclesOut,vd.processingCyclesOut1,
+                                            vd.rangeBinStartIndex,vd.rangeBinEndIndex,vd.unwrapPhasePeak_mm,vd.outputFilterBreathOut,vd.outputFilterHeartOut,
+                                            vd.heartRateEst_FFT,vd.heartRateEst_FFT_4Hz,vd.heartRateEst_xCorr,vd.heartRateEst_peakCount,vd.breathingRateEst_FFT,
+                                            vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
+                                            vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
+                                            vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct, 0 ,0])
                         '''
                         # 判別有沒有呼吸與有沒有人 (憋氣可以判別)
                         if np.mean(current_window_ebr) > 50000000 and np.mean(current_window_ehr) > 50:

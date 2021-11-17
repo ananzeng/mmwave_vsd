@@ -5,7 +5,7 @@ import vitalsign_v2
 import csv
 import os
 import pickle #pickle模組
-from  combine_svm import detect_Breath
+from  combine_svm import detect_Breath, substitute
 class globalV:
 	count = 0
 	hr = 0.0
@@ -45,6 +45,8 @@ if __name__ == "__main__":
     energe_hr = []  # 心跳能量的窗格
     heart_ti = []  #TI心跳
     breath_ti = []  #TI呼吸
+    tmp_br = 0  # 初始化前一秒呼吸律
+    tmp_hr = 0  # 初始化前一秒心律
     port.flushInput() #丟棄接收緩存中的所有數據
 
     #--------------------write csv-----------------------
@@ -136,6 +138,9 @@ if __name__ == "__main__":
 
                         br_rpm = np.round(br_rate)
                         hr_rpm = np.round(hr_rate)
+                        br_rate = substitute(tmp_br, br_rate, 1)
+                        hr_rate = substitute(tmp_hr, hr_rate, 1)
+
                         print("TIME：", ct)
                         print(f"Breathe Rate per minute: {br_rpm}")
                         print(f"Heart Rate per minute: {hr_rpm}")
@@ -148,6 +153,8 @@ if __name__ == "__main__":
                                                 vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
                                                 vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
                                                 vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct, hr_rpm, br_rpm])
+                        tmp_br = br_rate
+                        tmp_hr = hr_rate
                     else:
                         with open(path_data, 'a',newline='') as csvFile:
                             writer = csv.writer(csvFile, dialect = "excel")

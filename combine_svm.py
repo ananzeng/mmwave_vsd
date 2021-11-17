@@ -179,7 +179,7 @@ def candidate_search(signal_v,feature,window_size):
 def caculate_breathrate(NT_points,NB_points):#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	# if both NT and NB are not detected
     if NT_points.shape[0] <= 1 and NB_points.shape[0] <= 1:
-        return None
+        return 0
     # if only NT are detected
     elif NT_points.shape[0] > 1 and NB_points.shape[0] <= 1:
         tmp = np.concatenate(([0], NT_points), axis=0)
@@ -250,6 +250,22 @@ def timing(sec):
 		time.sleep(1)
 		current_time += 1
 		print(f"{current_time} sec")
+
+'''
+當呼吸律或心律為異常值，以前一秒的輸出值取代。
+'''
+def substitute(pre, input, result_type):
+	if result_type == 0:
+		if input < 40 and input > 110:
+			return pre
+		else:
+			return input
+	else:
+		if input < 10 and input > 25:
+			return pre
+		else:
+			return input
+		
 
 if __name__ == "__main__":
 	# Timing before start

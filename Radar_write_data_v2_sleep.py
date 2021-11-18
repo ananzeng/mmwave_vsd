@@ -102,6 +102,7 @@ if __name__ == "__main__":
                                     vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
                                     vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
                                    vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct, 0 ,0])
+                                   
             elif len(raw_sig) > 40*20:
                 coco = False
                 try:
@@ -114,7 +115,8 @@ if __name__ == "__main__":
                     # -------- 廢除 -------- 
                     # current_window_ebr = energe_br[-3*20:]
                     # current_window_ehr = energe_hr[-3*20:]
-
+                    
+                    time_End = time.time()
                     if time_End - time_Start >= 1:
                         time_Start = time_End
 

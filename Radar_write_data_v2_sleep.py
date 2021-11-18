@@ -140,8 +140,8 @@ if __name__ == "__main__":
 
                         br_rpm = np.round(br_rate)
                         hr_rpm = np.round(hr_rate)
-                        br_rate = substitute(tmp_br, br_rate, 1)
-                        hr_rate = substitute(tmp_hr, hr_rate, 1)
+                        br_rpm = substitute(tmp_br, br_rpm, 1)
+                        hr_rpm = substitute(tmp_hr, hr_rpm, 1)
 
                         print("TIME：", ct)
                         print(f"Breathe Rate per minute: {br_rpm}")
@@ -155,8 +155,8 @@ if __name__ == "__main__":
                                                 vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
                                                 vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
                                                 vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct, hr_rpm, br_rpm])
-                        tmp_br = br_rate
-                        tmp_hr = hr_rate
+                        tmp_br = br_rpm
+                        tmp_hr = hr_rpm
                     else:
                         with open(path_data, 'a',newline='') as csvFile:
                             writer = csv.writer(csvFile, dialect = "excel")

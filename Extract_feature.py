@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import seaborn as sns
-import breathrate_detection
+import combine_svm
 import scipy.signal as signal
 import scipy
 sns.set()
@@ -40,13 +40,13 @@ def caculate_breathrate(NT_points, NB_points):
         aver = (np.mean(aver_NB) + np.mean(aver_NT)) / 2
     return 1200 / aver
 
-# 送入長度固定
+# fRSA (30sec)
 def fRSA_fn(br_sig):
     auto_br_sig = np.correlate(br_sig, br_sig, mode='full')
-    auto_br_sig = auto_br_sig[auto_br_sig.size/2:]
+    auto_br_sig = auto_br_sig[auto_br_sig.size//2:]
     feature_peak, feature_valley, _= feature_detection(auto_br_sig)
     fRSA = caculate_breathrate(feature_peak, feature_valley)
-    fRSA = (fRSA / 2)  # 30秒
+    fRSA = (fRSA / 2)
     return fRSA
 
 # 10個fRSA
@@ -62,7 +62,7 @@ def sfRSA_fn(fRSA_sig):
 
 # 31個tf𝑅𝑆𝐴
 def stfRSA_fn(tfRSA_sig):
-    stfRSA = scipy.signal.savgol_filter(tfRSA_sig, 31, 3)
+    stfRSA = scipy.signal.savgol_filter(np.array(tfRSA_sig), 31, 2)
     stfRSA_mean = np.average(stfRSA)
     return stfRSA, stfRSA_mean
 
@@ -70,7 +70,46 @@ def stfRSA_fn(tfRSA_sig):
 def sdfRSA_fn(fRSA, sfRSA):
     sdfRSA = np.abs(fRSA - sfRSA)
     sdfRSA = scipy.signal.savgol_filter(sdfRSA, 31, 3)
-    return sdfRSA
+    sdfRSA_mean = np.average(sdfRSA)
+    return sdfRSA, sdfRSA_mean
 
+if __name__=="__main__":
 
+    # Data path
+    names = "./dataset_sleep"
+    for name in os.listdir(names):
+        files = os.path.join(names, name, "0.8")
+        for num in range(len(os.listdir(files)) // 2):
+            datas = os.listdir(files)[num]
+            data = os.path.join(files, datas)
+            raw_data = pd.read_csv(data)
+            
+            # Data preprocessing
+            unwrap_phase = raw_data["unwrapPhasePeak_mm"]
+            phase_diff = combine_svm.Phase_difference(unwrap_phase)
+            re_phase_diff = combine_svm.Remove_impulse_noise(phase_diff, 1.5)
+            amp_sig = combine_svm.Amplify_signal(re_phase_diff)  # Consider deleting
+            bandpass_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.9, 1.9, 20, 9, "cheby2")  # 0.125, 0.55, 20, 5
 
+            # Sliding window
+            loacl_fRSA = []
+            loacl_tfRSA = []
+            for index in range(len(bandpass_sig) - 30*20 + 1):
+                window = bandpass_sig[index:index + 30*20]
+                fRSA = fRSA_fn(window)
+                loacl_fRSA.append(fRSA)
+                if len(loacl_fRSA) >= 10:
+                    tfRSA = tfRSA_fn(loacl_fRSA[-10:])
+                    loacl_tfRSA.append(tfRSA)
+                    if len(loacl_tfRSA) >= 31:
+                        sfRSA, stfRSA_mean = stfRSA_fn(loacl_tfRSA[-31:])
+                        # print(sfRSA_mean)
+                if len(loacl_fRSA) >= 31:
+                        sfRSA, sfRSA_mean = sfRSA_fn(loacl_fRSA[-31:])
+                        sdfRSA, sdfRSA_mean = sdfRSA_fn(loacl_fRSA[-31:], sfRSA)
+                        print(sfRSA_mean)
+            
+
+            
+                
+                

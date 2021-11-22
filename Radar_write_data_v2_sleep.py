@@ -25,7 +25,7 @@ if __name__ == "__main__":
     print("111111111111111111111111111111111111111111111")
     time.sleep(1)
     # Data initial
-    port = serial.Serial("COM3",baudrate = 921600, timeout = 0.5) # Data Port
+    port = serial.Serial("COM4",baudrate = 921600, timeout = 0.5) # Data Port
     #initial global value
     gv = globalV(0)
     vts = vitalsign_v2.VitalSign(port)
@@ -68,13 +68,15 @@ if __name__ == "__main__":
     
     print("Recoding data...")
     time_Start = time.time()
+    ct = datetime.datetime.now().strftime('%H:%M:%S') # 時間格式為字串
+    start_time = int(ct[0:2])*3600 + int(ct[3:5])*60 + int(ct[6:8])
     while True:
         (dck , vd, rangeBuf) = vts.tlv_read(False)  # 是否顯示[Message TLV header]
         vs = vts.getHeader()
         if dck:
-            ct = datetime.datetime.now().strftime('%H:%M:%S') # 時間格式為字串
-            # ct = datetime_dt.strftime("%H:%M:%S")  # 格式化日期
-            start_time = int(ct[0:2])*3600 + int(ct[3:5])*60 + int(ct[6:8])
+            # ct = datetime.datetime.now().strftime('%H:%M:%S') # 時間格式為字串
+            # # ct = datetime_dt.strftime("%H:%M:%S")  # 格式化日期
+            # start_time = int(ct[0:2])*3600 + int(ct[3:5])*60 + int(ct[6:8])
 
             # ct = datetime.datetime.now()
             raw_sig.append(vd.unwrapPhasePeak_mm)
@@ -149,7 +151,7 @@ if __name__ == "__main__":
                         br_rate = substitute(tmp_br, br_rate, 1)
                         hr_rate = substitute(tmp_hr, hr_rate, 1)
 
-                        print("TIME：", ct)
+                        # print("TIME：", ct2)
                         print(f"Breathe Rate per minute: {br_rpm}")
                         print(f"Heart Rate per minute: {hr_rpm}")
                         print()
@@ -165,6 +167,7 @@ if __name__ == "__main__":
                         tmp_br = br_rate
                         tmp_hr = hr_rate
                     else:
+                        ct3 = datetime.datetime.now().strftime('%H:%M:%S') # 時間格式為字串
                         with open(path_data, 'a',newline='') as csvFile:
                             writer = csv.writer(csvFile, dialect = "excel")
                             writer.writerow([vd.rangeBinIndexMax,vd.rangeBinIndexPhase,vd.maxVal,vd.processingCyclesOut,vd.processingCyclesOut1,

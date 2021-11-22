@@ -72,9 +72,10 @@ if __name__ == "__main__":
         (dck , vd, rangeBuf) = vts.tlv_read(False)  # 是否顯示[Message TLV header]
         vs = vts.getHeader()
         if dck:
-            datetime_dt = datetime.datetime.today()  # 獲得當地時間
-            ct = datetime_dt.strftime("%H:%M:%S")  # 格式化日期
-            time_stamp_start = int(time.mktime(ct))
+            ct = datetime.datetime.now().strftime('%H:%M:%S') # 時間格式為字串
+            # ct = datetime_dt.strftime("%H:%M:%S")  # 格式化日期
+            start_time = int(ct[0:2])*3600 + int(ct[3:5])*60 + int(ct[6:8])
+
             # ct = datetime.datetime.now()
             raw_sig.append(vd.unwrapPhasePeak_mm)
             # energe_br.append(vd.sumEnergyBreathWfm)
@@ -118,12 +119,12 @@ if __name__ == "__main__":
                     # current_window_ehr = energe_hr[-3*20:]
 
                     # 秒數
-                    datetime_dt2 = datetime.datetime.today()  # 獲得當地時間
-                    ct2 = datetime_dt.strftime("%H:%M:%S")
-                    time_stamp_end = int(time.mktime(ct2))
+                    ct2 = datetime.datetime.now().strftime('%H:%M:%S') # 時間格式為字串
+                    # ct = datetime_dt.strftime("%H:%M:%S")  # 格式化日期
+                    end_time = int(ct2[0:2])*3600 + int(ct2[3:5])*60 + int(ct2[6:8])
                     # time_End = time.time()
-                    if time_stamp_end - time_stamp_start >= 1:
-                        time_stamp_start = time_stamp_end
+                    if end_time - start_time >= 1:
+                        start_time = end_time
 
                         # 呼吸
                         br_rate, index_of_fftmax = detect_Breath(current_window_sig, a[0][:])
@@ -145,13 +146,14 @@ if __name__ == "__main__":
 
                         br_rpm = np.round(br_rate)
                         hr_rpm = np.round(hr_rate)
-                        br_rpm = substitute(tmp_br, br_rpm, 1)
-                        hr_rpm = substitute(tmp_hr, hr_rpm, 1)
+                        br_rate = substitute(tmp_br, br_rate, 1)
+                        hr_rate = substitute(tmp_hr, hr_rate, 1)
 
                         print("TIME：", ct)
                         print(f"Breathe Rate per minute: {br_rpm}")
                         print(f"Heart Rate per minute: {hr_rpm}")
                         print()
+                        ct3 = datetime.datetime.now().strftime('%H:%M:%S') # 時間格式為字串
                         with open(path_data, 'a',newline='') as csvFile:
                             writer = csv.writer(csvFile, dialect = "excel")
                             writer.writerow([vd.rangeBinIndexMax,vd.rangeBinIndexPhase,vd.maxVal,vd.processingCyclesOut,vd.processingCyclesOut1,
@@ -159,9 +161,9 @@ if __name__ == "__main__":
                                                 vd.heartRateEst_FFT,vd.heartRateEst_FFT_4Hz,vd.heartRateEst_xCorr,vd.heartRateEst_peakCount,vd.breathingRateEst_FFT,
                                                 vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
                                                 vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
-                                                vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct, hr_rpm, br_rpm])
-                        tmp_br = br_rpm
-                        tmp_hr = hr_rpm
+                                                vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct3, hr_rpm, br_rpm])
+                        tmp_br = br_rate
+                        tmp_hr = hr_rate
                     else:
                         with open(path_data, 'a',newline='') as csvFile:
                             writer = csv.writer(csvFile, dialect = "excel")
@@ -170,7 +172,7 @@ if __name__ == "__main__":
                                             vd.heartRateEst_FFT,vd.heartRateEst_FFT_4Hz,vd.heartRateEst_xCorr,vd.heartRateEst_peakCount,vd.breathingRateEst_FFT,
                                             vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
                                             vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
-                                            vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct, 0 ,0])
+                                            vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct3, 0 ,0])
                         '''
                         # 判別有沒有呼吸與有沒有人 (憋氣可以判別)
                         if np.mean(current_window_ebr) > 50000000 and np.mean(current_window_ehr) > 50:

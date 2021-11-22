@@ -62,7 +62,7 @@ def sfRSA_fn(fRSA_sig):
 
 # 31個tf𝑅𝑆𝐴
 def stfRSA_fn(tfRSA_sig):
-    stfRSA = scipy.signal.savgol_filter(tfRSA_sig, 31, 3)
+    stfRSA = scipy.signal.savgol_filter(np.array(tfRSA_sig), 31, 2)
     stfRSA_mean = np.average(stfRSA)
     return stfRSA, stfRSA_mean
 
@@ -70,7 +70,8 @@ def stfRSA_fn(tfRSA_sig):
 def sdfRSA_fn(fRSA, sfRSA):
     sdfRSA = np.abs(fRSA - sfRSA)
     sdfRSA = scipy.signal.savgol_filter(sdfRSA, 31, 3)
-    return sdfRSA
+    sdfRSA_mean = np.average(sdfRSA)
+    return sdfRSA, sdfRSA_mean
 
 if __name__=="__main__":
 
@@ -88,16 +89,27 @@ if __name__=="__main__":
             phase_diff = combine_svm.Phase_difference(unwrap_phase)
             re_phase_diff = combine_svm.Remove_impulse_noise(phase_diff, 1.5)
             amp_sig = combine_svm.Amplify_signal(re_phase_diff)  # Consider deleting
-            bandpass_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.125, 0.55, 20, 5, "cheby2")
+            bandpass_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.9, 1.9, 20, 9, "cheby2")  # 0.125, 0.55, 20, 5
 
             # Sliding window
             loacl_fRSA = []
-            for index in range(len(bandpass_sig) - 30*20):
+            loacl_tfRSA = []
+            for index in range(len(bandpass_sig) - 30*20 + 1):
                 window = bandpass_sig[index:index + 30*20]
                 fRSA = fRSA_fn(window)
                 loacl_fRSA.append(fRSA)
+                if len(loacl_fRSA) >= 10:
+                    tfRSA = tfRSA_fn(loacl_fRSA[-10:])
+                    loacl_tfRSA.append(tfRSA)
+                    if len(loacl_tfRSA) >= 31:
+                        sfRSA, stfRSA_mean = stfRSA_fn(loacl_tfRSA[-31:])
+                        # print(sfRSA_mean)
+                if len(loacl_fRSA) >= 31:
+                        sfRSA, sfRSA_mean = sfRSA_fn(loacl_fRSA[-31:])
+                        sdfRSA, sdfRSA_mean = sdfRSA_fn(loacl_fRSA[-31:], sfRSA)
+                        print(sfRSA_mean)
+            
 
             
                 
                 
-

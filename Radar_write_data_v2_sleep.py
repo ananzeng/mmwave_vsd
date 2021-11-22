@@ -74,6 +74,7 @@ if __name__ == "__main__":
         if dck:
             datetime_dt = datetime.datetime.today()  # 獲得當地時間
             ct = datetime_dt.strftime("%H:%M:%S")  # 格式化日期
+            time_stamp_start = int(time.mktime(ct))
             # ct = datetime.datetime.now()
             raw_sig.append(vd.unwrapPhasePeak_mm)
             # energe_br.append(vd.sumEnergyBreathWfm)
@@ -115,10 +116,14 @@ if __name__ == "__main__":
                     # -------- 廢除 -------- 
                     # current_window_ebr = energe_br[-3*20:]
                     # current_window_ehr = energe_hr[-3*20:]
-                    
-                    time_End = time.time()
-                    if time_End - time_Start >= 1:
-                        time_Start = time_End
+
+                    # 秒數
+                    datetime_dt2 = datetime.datetime.today()  # 獲得當地時間
+                    ct2 = datetime_dt.strftime("%H:%M:%S")
+                    time_stamp_end = int(time.mktime(ct2))
+                    # time_End = time.time()
+                    if time_stamp_end - time_stamp_start >= 1:
+                        time_stamp_start = time_stamp_end
 
                         # 呼吸
                         br_rate, index_of_fftmax = detect_Breath(current_window_sig, a[0][:])

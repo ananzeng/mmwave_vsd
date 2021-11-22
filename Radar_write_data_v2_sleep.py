@@ -6,6 +6,7 @@ import csv
 import os
 import pickle #pickle模組
 from  combine_svm import detect_Breath, substitute
+
 class globalV:
 	count = 0
 	hr = 0.0
@@ -122,6 +123,7 @@ if __name__ == "__main__":
 
                     # 秒數
                     ct2 = datetime.datetime.now().strftime('%H:%M:%S') # 時間格式為字串
+                    print(ct2)
                     # ct = datetime_dt.strftime("%H:%M:%S")  # 格式化日期
                     end_time = int(ct2[0:2])*3600 + int(ct2[3:5])*60 + int(ct2[6:8])
                     # time_End = time.time()

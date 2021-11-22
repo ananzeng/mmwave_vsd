@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import seaborn as sns
-import breathrate_detection
+import combine_svm
 import scipy.signal as signal
 import scipy
 sns.set()
@@ -40,13 +40,13 @@ def caculate_breathrate(NT_points, NB_points):
         aver = (np.mean(aver_NB) + np.mean(aver_NT)) / 2
     return 1200 / aver
 
-# 送入長度固定
+# fRSA (30sec)
 def fRSA_fn(br_sig):
     auto_br_sig = np.correlate(br_sig, br_sig, mode='full')
-    auto_br_sig = auto_br_sig[auto_br_sig.size/2:]
+    auto_br_sig = auto_br_sig[auto_br_sig.size//2:]
     feature_peak, feature_valley, _= feature_detection(auto_br_sig)
     fRSA = caculate_breathrate(feature_peak, feature_valley)
-    fRSA = (fRSA / 2)  # 30秒
+    fRSA = (fRSA / 2)
     return fRSA
 
 # 10個fRSA
@@ -72,5 +72,32 @@ def sdfRSA_fn(fRSA, sfRSA):
     sdfRSA = scipy.signal.savgol_filter(sdfRSA, 31, 3)
     return sdfRSA
 
+if __name__=="__main__":
 
+    # Data path
+    names = "./dataset_sleep"
+    for name in os.listdir(names):
+        files = os.path.join(names, name, "0.8")
+        for num in range(len(os.listdir(files)) // 2):
+            datas = os.listdir(files)[num]
+            data = os.path.join(files, datas)
+            raw_data = pd.read_csv(data)
+            
+            # Data preprocessing
+            unwrap_phase = raw_data["unwrapPhasePeak_mm"]
+            phase_diff = combine_svm.Phase_difference(unwrap_phase)
+            re_phase_diff = combine_svm.Remove_impulse_noise(phase_diff, 1.5)
+            amp_sig = combine_svm.Amplify_signal(re_phase_diff)  # Consider deleting
+            bandpass_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.125, 0.55, 20, 5, "cheby2")
+
+            # Sliding window
+            loacl_fRSA = []
+            for index in range(len(bandpass_sig) - 30*20):
+                window = bandpass_sig[index:index + 30*20]
+                fRSA = fRSA_fn(window)
+                loacl_fRSA.append(fRSA)
+
+            
+                
+                
 

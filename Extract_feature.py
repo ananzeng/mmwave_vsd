@@ -40,6 +40,27 @@ def caculate_breathrate(NT_points, NB_points):
         aver = (np.mean(aver_NB) + np.mean(aver_NT)) / 2
     return 1200 / aver
 
+''' ----------------------- Movement ----------------------- '''
+# 30s訊號 = 30 * 20 = 600
+def mov_dens_fn(raw_sig):
+    new_sig = []
+    count = 0
+    for num in range(80):
+        top = 0
+        first = int(num*(0.5*20))
+        last = int((num+1)*(0.5*20))
+        x = raw_sig[first:last]
+
+        # 方差公式
+        for i in range(10):
+            top += np.square(x[i] - np.average(x))
+        result = top / (10 - 1)
+        if result > 0.005:  # 閥值可調
+            count += 1
+    percent = (count/80) * 100
+    return percent
+
+''' ----------------------- Respiration ----------------------- '''
 # fRSA (30sec)
 def fRSA_fn(br_sig):
     auto_br_sig = np.correlate(br_sig, br_sig, mode='full')
@@ -73,6 +94,15 @@ def sdfRSA_fn(fRSA, sfRSA):
     sdfRSA_mean = np.average(sdfRSA)
     return sdfRSA, sdfRSA_mean
 
+''' ----------------------- Heart rate ----------------------- '''
+def mHR_fn(heart):
+    return fRSA_fn(heart)
+
+def LF_HF_LFHF(sig):
+    LF_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.04, 0.15, 20, 9, "cheby2")
+    HF_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.15, 0.4, 20, 9, "cheby2")
+    
+    
 if __name__=="__main__":
 
     # Data path
@@ -86,29 +116,38 @@ if __name__=="__main__":
             
             # Data preprocessing
             unwrap_phase = raw_data["unwrapPhasePeak_mm"]
+            # breath_energy = raw_data["sumEnergyBreathWfm"]
+            heart_energy = raw_data["sumEnergyHeartWfm"]
             phase_diff = combine_svm.Phase_difference(unwrap_phase)
             re_phase_diff = combine_svm.Remove_impulse_noise(phase_diff, 1.5)
             amp_sig = combine_svm.Amplify_signal(re_phase_diff)  # Consider deleting
-            bandpass_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.9, 1.9, 20, 9, "cheby2")  # 0.125, 0.55, 20, 5
+            breath_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.125, 0.55, 20, 5, "cheby2")
+            heart_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.9, 1.9, 20, 9, "cheby2")
 
             # Sliding window
             loacl_fRSA = []
             loacl_tfRSA = []
-            for index in range(len(bandpass_sig) - 30*20 + 1):
-                window = bandpass_sig[index:index + 30*20]
-                fRSA = fRSA_fn(window)
+            for index in range(len(breath_sig) - 40*20 + 1):
+                window_b = breath_sig[index:index + 40*20]
+                window_h = heart_sig[index:index + 40*20]
+
+                # ---------- Movement ---------- 
+                mov_dens = mov_dens_fn(window_b)
+
+                # ---------- Respiration ---------- 
+                fRSA = fRSA_fn(window_b)
                 loacl_fRSA.append(fRSA)
                 if len(loacl_fRSA) >= 10:
                     tfRSA = tfRSA_fn(loacl_fRSA[-10:])
                     loacl_tfRSA.append(tfRSA)
                     if len(loacl_tfRSA) >= 31:
                         sfRSA, stfRSA_mean = stfRSA_fn(loacl_tfRSA[-31:])
-                        # print(sfRSA_mean)
                 if len(loacl_fRSA) >= 31:
                         sfRSA, sfRSA_mean = sfRSA_fn(loacl_fRSA[-31:])
                         sdfRSA, sdfRSA_mean = sdfRSA_fn(loacl_fRSA[-31:], sfRSA)
-                        print(sfRSA_mean)
-            
+                
+                # ---------- Heart rate ---------- 
+                mHR = mHR_fn(window_h)
 
             
                 

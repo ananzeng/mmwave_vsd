@@ -27,13 +27,13 @@ if __name__ == "__main__":
     print("111111111111111111111111111111111111111111111")
     time.sleep(1)
     # Data initial
-    port = serial.Serial("COM4",baudrate = 921600, timeout = 0.5) # Data Port
+    port = serial.Serial("COM3",baudrate = 921600, timeout = 0.5) # Data Port
     #initial global value
     gv = globalV(0)
     vts = vitalsign_v2.VitalSign(port)
     # --------------------------------------------------
     folder='./dataset_sleep'									#資料庫名稱
-    name = '1022test'
+    name = '1124test'
     distance = str(0.8)									#資料要放進哪個距離的資料夾
     people =  folder +'/'+ name 
     if not os.path.isdir(people):
@@ -180,8 +180,8 @@ if __name__ == "__main__":
 
                         br_rpm = np.round(br_rate)
                         hr_rpm = np.round(hr_rate)
-                        br_rate = substitute(tmp_br, br_rate, 1)
-                        hr_rate = substitute(tmp_hr, hr_rate, 1)
+                        br_rpm = substitute(tmp_br, br_rpm, 1)
+                        hr_rpm = substitute(tmp_hr, hr_rpm, 0)
 
                         # print("TIME：", ct2)
                         print(f"Breathe Rate per minute: {br_rpm}")
@@ -196,8 +196,8 @@ if __name__ == "__main__":
                                                 vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
                                                 vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
                                                 vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct3[11:19], hr_rpm, br_rpm])
-                        tmp_br = br_rate
-                        tmp_hr = hr_rate
+                        tmp_br = br_rpm
+                        tmp_hr = hr_rpm
                     else:
                         ct3 = datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S') # 時間格式為字串
                         with open(path_data, 'a',newline='') as csvFile:

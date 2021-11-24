@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-user = "1110test"
+user = "1124test"
 files_path = os.path.join("dataset_sleep", user, "0.8")
 files = os.listdir(files_path)    
 for tmp in range(0, len(files)//2, 1):

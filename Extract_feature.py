@@ -145,12 +145,12 @@ if __name__=="__main__":
             # Data preprocessing
             unwrap_phase = raw_data["unwrapPhasePeak_mm"]
             # breath_energy = raw_data["sumEnergyBreathWfm"]
-            heart_energy = raw_data["sumEnergyHeartWfm"]
+            # heart_energy = raw_data["sumEnergyHeartWfm"]
             phase_diff = combine_svm.Phase_difference(unwrap_phase)
             re_phase_diff = combine_svm.Remove_impulse_noise(phase_diff, 1.5)
             amp_sig = combine_svm.Amplify_signal(re_phase_diff)  # Consider deleting
-            breath_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.125, 0.55, 20, 5, "cheby2")  # [:1000]
-            heart_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.9, 1.9, 20, 9, "cheby2")  # [:1000]
+            breath_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.125, 0.55, 20, 5, "cheby2")
+            heart_sig = combine_svm.iir_bandpass_filter_1(amp_sig, 0.9, 1.9, 20, 9, "cheby2")
 
             # Array
             loacl_fRSA = []
@@ -172,7 +172,14 @@ if __name__=="__main__":
             for index in tqdm(range(len(breath_sig) - 40*20 + 1)):
                 window_b = breath_sig[index:index + 40*20]
                 window_h = heart_sig[index:index + 40*20]
+            # for index in tqdm(range(len(breath_sig) // (40*20))):
+            #     start_index = index * (40*20)
+            #     end_index = start_index + (40*20)
+            #     window_b = breath_sig[start_index:end_index]
+            #     window_h = heart_sig[start_index:end_index]
 
+                for i in range(40*20-1):
+                    loacl_fRSA.insert(i, 0)
                 # ---------- Movement ---------- 
                 mov_dens = mov_dens_fn(window_b)
 

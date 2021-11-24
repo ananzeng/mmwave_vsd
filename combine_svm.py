@@ -256,12 +256,12 @@ def timing(sec):
 '''
 def substitute(pre, input, result_type):
 	if result_type == 0:
-		if input < 40 or input > 110:
+		if input < 40 and input > 110:
 			return pre
 		else:
 			return input
 	else:
-		if input < 10 or input > 25:
+		if input < 10 and input > 25:
 			return pre
 		else:
 			return input

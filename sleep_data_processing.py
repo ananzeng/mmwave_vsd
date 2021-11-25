@@ -2,8 +2,8 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-user = "1124test"
-files_path = os.path.join("dataset_sleep", user, "0.8")
+user = "1125"
+files_path = os.path.join("dataset_sleep", user, "labeled_data")
 files = os.listdir(files_path)    
 for tmp in range(0, len(files)//2, 1):
     file = files[tmp]
@@ -13,6 +13,7 @@ for tmp in range(0, len(files)//2, 1):
     all_time = vitial_sig['datetime'].values
     all_heart = vitial_sig['heart'].values
     all_breath = vitial_sig['breath'].values
+    all_sleep_stage = vitial_sig['sleep'].values
     temp_all_time = []
     temp_all_heart = []
     temp_all_breath = []
@@ -20,7 +21,7 @@ for tmp in range(0, len(files)//2, 1):
     time = []
     heart = []
     breath = []
-
+    sleep = []
     for i in range(0, len(all_time)-1):
         if all_time[i] == all_time[i+1]:
             temp_all_time.append(all_time[i])
@@ -41,6 +42,7 @@ for tmp in range(0, len(files)//2, 1):
             if one.size == 1:
                 heart.append(temp_all_heart[int(one[0])])
                 breath.append(temp_all_breath[int(one[0])])      
+                sleep.append(all_sleep_stage[i])
             elif one.size == 0:
                 print("全0")
                 heart.append(0)
@@ -52,8 +54,18 @@ for tmp in range(0, len(files)//2, 1):
             temp_all_time = []
             temp_all_heart = []
             temp_all_breath = []
+    plt.figure(figsize=(12,4))
+    plt.subplot(311)
+    plt.title('heart rate')
 
-    plt.plot(np.arange(len(time)),heart)
-    plt.plot(np.arange(len(time)),breath)
+    plt.plot(np.arange(len(time)) ,heart, "b", linewidth = 1)
+    plt.subplot(312)
+    plt.title('breath rate')
+
+    plt.plot(np.arange(len(time)) ,breath, "g")
+    plt.subplot(313)
+    plt.title('sleep stage  5=Wake, 4=REM, 3=Light Sleep, 2=Deep Sleep')
+
+    plt.plot(np.arange(len(time)) ,sleep, "y")
     plt.show()
     

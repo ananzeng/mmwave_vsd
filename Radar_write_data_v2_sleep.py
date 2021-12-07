@@ -27,9 +27,34 @@ if __name__ == "__main__":
     print("111111111111111111111111111111111111111111111")
     time.sleep(1)
     # Data initial
+    # port = serial.Serial("COM3",baudrate = 921600, timeout = 0.5) # Data Port
+    # #initial global value
+    # gv = globalV(0)
+
+    """ 左臻 """
+    # # UART Write initial
+    # portw = serial.Serial("COM5",baudrate = 115200, timeout = 0.5) # User UART :notebook:COM6,computer:COM4
+    # Read_Radar_parameter = open("./Radar_parameter.txt", "r")
+
+    # for parameter in iter(Read_Radar_parameter):
+    #     portw.write((parameter.encode(encoding="utf-8")).strip(b'\n').replace(b"\\n",b"\n").replace(b"\\r",b"\r"))
+    #     time.sleep(1)
+    #     print((parameter.encode(encoding="utf-8")).strip(b'\n').replace(b"\\n",b"\n").replace(b"\\r",b"\r"))
+
+    # Read_Radar_parameter.close()
+    # # Data initial
+    # port = serial.Serial("COM6",baudrate = 921600, timeout = 0.5) # Data Port
+    # #initial global value
+    # gv = globalV(0)
+    """ ------------------------------------ """
+
+    """ 久邦 """
+    # Data initial
     port = serial.Serial("COM3",baudrate = 921600, timeout = 0.5) # Data Port
     #initial global value
     gv = globalV(0)
+    """ ------------------------------------ """
+
     vts = vitalsign_v2.VitalSign(port)
     # --------------------------------------------------
     folder='./dataset_sleep'									#資料庫名稱
@@ -106,7 +131,6 @@ if __name__ == "__main__":
                 print(f"Elapsed time (sec): {round(time_End - time_Start, 3)}")
                 
             if len(raw_sig) <= 40*20:
-                '''
                 with open(path_data, 'a',newline='') as csvFile:
                     writer = csv.writer(csvFile, dialect = "excel")
                     writer.writerow([vd.rangeBinIndexMax,vd.rangeBinIndexPhase,vd.maxVal,vd.processingCyclesOut,vd.processingCyclesOut1,
@@ -115,7 +139,7 @@ if __name__ == "__main__":
                                     vd.breathingEst_xCorr,vd.breathingEst_peakCount,vd.confidenceMetricBreathOut,vd.confidenceMetricBreathOut_xCorr,vd.confidenceMetricHeartOut,
                                     vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
                                    vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct[11:19], 0 ,0])
-                '''        
+                                   
             elif len(raw_sig) > 40*20:
                 coco = False
                 try:
@@ -168,7 +192,7 @@ if __name__ == "__main__":
                             #print("br_svm_predict ", clf.predict(([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])))
                             svm_predict = clf.predict([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])
                             if svm_predict == 1:
-                                br_rate = np.mean(current_breath_ti)
+                                br_rate = int(np.mean(current_breath_ti))
 
                         # 心跳
                         hr_rate ,index_of_fftmax = detect_Breath(current_window_sig, a[1][:])
@@ -177,14 +201,13 @@ if __name__ == "__main__":
                             #print("hr_svm_predict ", clf.predict(([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])))
                             svm_predict = clf.predict([[index_of_fftmax,heartRateEst_FFT_mean,heartRateEst_xCorr_mean]])
                             if svm_predict == 1:
-                                hr_rate = np.mean(current_heart_ti)
+                                hr_rate = int(np.mean(current_heart_ti))
 
-                        br_rpm = br_rate
-                        hr_rpm = hr_rate
+                        br_rpm = np.round(br_rate)
+                        hr_rpm = np.round(hr_rate)
                         br_rpm = substitute(tmp_br, br_rpm, 1)
                         hr_rpm = substitute(tmp_hr, hr_rpm, 0)
-                        br_rpm = np.round(br_rpm, 4)
-                        hr_rpm = np.round(hr_rpm, 4)
+
                         # print("TIME：", ct2)
                         print(f"Breathe Rate per minute: {br_rpm}")
                         print(f"Heart Rate per minute: {hr_rpm}")

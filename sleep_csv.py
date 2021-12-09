@@ -2,9 +2,9 @@ import os
 import pandas as pd
 import csv
 import numpy as np
-path = os.path.join("dataset_sleep", "1110test", "0.8", "0.csv")
-stage_csv = os.path.join("dataset_sleep", "1110test", "0.8", "stage.csv")
-stage_csv_data = os.path.join("dataset_sleep", "1110test", "0.8", "data.csv")
+path = os.path.join("dataset_sleep", "1209", "0.8", "0.csv")
+stage_csv = os.path.join("dataset_sleep", "1209", "0.8", "stage.csv")
+stage_csv_data = os.path.join("dataset_sleep", "1209", "0.8", "data.csv")
 print(path)
 start = True
 end = True

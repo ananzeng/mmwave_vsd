@@ -19,6 +19,8 @@ def load_file(path):
     stfRSA = []
     stmHR = []
     sleep = []
+    time = []
+    sleep_counter = []
     sleep_feature_path = path
     for i in os.listdir(sleep_feature_path):
         print("現在檔案：", i)
@@ -35,9 +37,12 @@ def load_file(path):
             stfRSA.append(sleep_features["stfRSA"].values[number])
             stmHR.append(sleep_features["stmHR"].values[number])
             sleep.append(sleep_features["sleep"].values[number])
-    return heart, breath, tfRSA, tmHR, sfRSA, smHR, sdfRSA, sdmHR, stfRSA, stmHR, sleep
-heart, breath, tfRSA, tmHR, sfRSA, smHR, sdfRSA, sdmHR, stfRSA, stmHR , sleep = load_file(os.path.join("sleep_features_min", "train"))
-X_train = [heart, breath, tfRSA, tmHR, sfRSA, smHR, sdfRSA, sdmHR, stfRSA, stmHR]
+            time.append(sleep_features["time"].values[number])
+            sleep_counter.append(sleep_features["sleep_counter"].values[number])
+
+    return heart, breath, tfRSA, tmHR, sfRSA, smHR, sdfRSA, sdmHR, stfRSA, stmHR, sleep, time, sleep_counter
+heart, breath, tfRSA, tmHR, sfRSA, smHR, sdfRSA, sdmHR, stfRSA, stmHR, sleep, time, sleep_counter = load_file(os.path.join("sleep_features_min", "train"))
+X_train = [heart, breath, tfRSA, tmHR, sfRSA, smHR, sdfRSA, sdmHR, stfRSA, stmHR, time, sleep_counter]
 y_train = sleep
 all_data = np.array(X_train).transpose()
 all_gt_array = np.array(y_train)
@@ -59,8 +64,8 @@ clf2 = joblib.load('save/sleep_feature_min_svm.pkl')
 neigh2 = joblib.load('save/sleep_feature_min_knn.pkl')
 xgbrmodel2 = joblib.load('save/sleep_feature_min_xgb.pkl')
 
-heart, breath, tfRSA, tmHR, sfRSA, smHR, sdfRSA, sdmHR, stfRSA, stmHR , sleep = load_file(os.path.join("sleep_features_min", "test"))
-X_test = [heart, breath, tfRSA, tmHR, sfRSA, smHR, sdfRSA, sdmHR, stfRSA, stmHR]
+heart, breath, tfRSA, tmHR, sfRSA, smHR, sdfRSA, sdmHR, stfRSA, stmHR , sleep, time, sleep_counter = load_file(os.path.join("sleep_features_min", "test"))
+X_test = [heart, breath, tfRSA, tmHR, sfRSA, smHR, sdfRSA, sdmHR, stfRSA, stmHR, time, sleep_counter]
 y_test = sleep
 all_data = np.array(X_test).transpose()
 all_gt_array = np.array(y_test)

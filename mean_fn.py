@@ -16,7 +16,8 @@ def sec2min(data):
     stfRSA_ar = []
     stmHR_ar = []
     datetime_ar = []
-
+    time_ar = []
+    stage_counter_ar = []
     next_HM = False
     strat_index = 0
     loc_time = data.datetime
@@ -52,10 +53,12 @@ def sec2min(data):
             sdmHR_ar.append(np.mean(data["sdmHR"][strat_index:end_index]))
             stfRSA_ar.append(np.mean(data["stfRSA"][strat_index:end_index]))
             stmHR_ar.append(np.mean(data["stmHR"][strat_index:end_index]))
+            time_ar.append(np.mean(data["time"][strat_index:end_index]))
+            stage_counter_ar.append(np.mean(data["sleep_counter"][strat_index:end_index]))
             next_HM = False
             strat_index = int(loc)
 
-    data_min_tmp = {"datetime":datetime_ar, "heart":heart_ar, "breath":breath_ar, "sleep":sleep_ar, "tfRSA":tfRSA_ar, "tmHR":tmHR_ar, "sfRSA":sfRSA_ar, "smHR":smHR_ar, "sdfRSA":sdfRSA_ar, "sdmHR":sdmHR_ar, "stfRSA":stfRSA_ar, "stmHR":stmHR_ar}
+    data_min_tmp = {"datetime":datetime_ar, "heart":heart_ar, "breath":breath_ar, "sleep":sleep_ar, "tfRSA":tfRSA_ar, "tmHR":tmHR_ar, "sfRSA":sfRSA_ar, "smHR":smHR_ar, "sdfRSA":sdfRSA_ar, "sdmHR":sdmHR_ar, "stfRSA":stfRSA_ar, "stmHR":stmHR_ar, "time":time_ar, "sleep_counter":stage_counter_ar}
     data_min = pd.DataFrame(data_min_tmp)
     return data_min
 

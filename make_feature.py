@@ -11,22 +11,22 @@ import scipy.signal
 from scipy.fftpack import fft
 import seaborn as sns
 import datetime,time
-def mov_dens_fn(raw_sig):
-    new_sig = []
-    count = 0
-    for num in range(80):
-        top = 0
-        first = int(num*(0.5*20))
-        last = int((num+1)*(0.5*20))
-        x = raw_sig[first:last]
 
+def mov_dens_fn(raw_sig):
+    count = 0
+    # Segments with 0.5s length = 80 Segments
+    for num in range(10):  # 80
+        top = []
+        first = int(num*(4))  # 0.5*20
+        last = int((num+1)*(4))  # 0.5*20
+        x = np.array(np.round(raw_sig[first:last], 8))
         # 方差公式
-        for i in range(10):
-            top += np.square(x[i] - np.average(x))
-        result = top / (10 - 1)
-        if result > 0.005:  # 閥值可調
+        for i in range(4):
+            top.append(np.square(x[i] - np.average(x)))
+        result = np.sum(top) / (4 - 1)
+        if result > 0.002:  # 閥值可調
             count += 1
-    percent = (count/80) * 100
+    percent = (count/10) * 100  # 80
     return percent
 
 ''' ----------------------- Respiration ----------------------- '''
@@ -67,6 +67,30 @@ def stmHR_fn(tmHR_sig):
 def sdmHR_fn(mHR, smHR):
     return sdfRSA_fn(mHR, smHR)
 
+''' ----------------------- HRV ----------------------- '''
+def LF_HF_LFHF(sig):
+    LF_sig = combine_svm.iir_bandpass_filter_1(sig, 0.04, 0.15, 20, 2, "cheby2")
+    HF_sig = combine_svm.iir_bandpass_filter_1(sig, 0.15, 0.4, 20, 2, "cheby2")
+    LF_eng = energe(LF_sig)
+    HF_eng = energe(HF_sig)
+    LFHF_eng = HF_eng / LF_eng
+    return LF_eng, HF_eng, LFHF_eng
+
+def energe(sig):
+    N = len(sig)
+    bps_fft = np.fft.fft(sig)
+    return np.sum(np.square(np.abs(bps_fft[:N // 2])))
+
+def sHF_fn(HF_sig):
+    sHF = scipy.signal.savgol_filter(HF_sig, 31, 3)
+    sHF_mean = np.average(sfRSA)
+    return sHF, sHF_mean
+
+def sLFHF_fn(LFHF_sig):
+    sLFHF = scipy.signal.savgol_filter(LFHF_sig, 31, 3)
+    sLFHF_mean = np.average(sfRSA)
+    return sLFHF, sLFHF_mean
+
 names = "./dataset_sleep_test"
 raw_data_pd = pd.DataFrame()
 
@@ -78,12 +102,95 @@ for num in range(len(os.listdir(files))):
     print(data)
     raw_data_pd = pd.read_csv(data)
 
-
+    # ------------------------ Drop ------------------------ 
     raw_data_pd['heart'] = raw_data_pd['heart'].replace(0, np.nan)
     new_data = raw_data_pd.dropna()
     breath = np.array(new_data['breath'])
     heart = np.array(new_data['heart'])
     print(f"Total len: {len(heart)}\n")
+
+    # ------------------------ Mov_dens ------------------------ 
+    unwrapPhasePeak_mm = raw_data_pd["unwrapPhasePeak_mm"]
+
+    local_mov_dens = []
+    num_in_window = 40  # 40s
+
+    # 空值補0
+    for i in range(num_in_window-1):
+        local_mov_dens.append(0)
+
+    for turn in tqdm(range(len(unwrapPhasePeak_mm) - num_in_window + 1)):
+        start_index = turn
+        end_index = start_index + num_in_window
+
+        # Slide data
+        window_mov_dens = unwrapPhasePeak_mm[start_index:end_index]
+
+        # Standard deviation
+        mov_dens = mov_dens_fn(window_mov_dens)
+        local_mov_dens.append(str(round(mov_dens, 4)))
+
+    print(f"Real len: {len(unwrapPhasePeak_mm)}\nMov_dens len: {len(local_mov_dens)}")
+
+    raw_data_pd["mov_dens"] = local_mov_dens
+    raw_data_pd
+
+    # ------------- HRV ------------- 
+    local_LF = []
+    local_HF = []
+    local_LFHF = []
+    num_in_window = 60*5  # 5 min
+
+    # 空值補0
+    for i in range(num_in_window-1):
+        local_LF.append(0)
+        local_HF.append(0)
+        local_LFHF.append(0)
+
+    for turn in range(len(unwrapPhasePeak_mm) - num_in_window + 1):
+        start_index = turn
+        end_index = start_index + num_in_window
+
+        # Slide data
+        window_unwrapPhasePeak_mm = unwrapPhasePeak_mm[start_index:end_index]
+
+        # LF_HF_LFHF
+        LF, HF, LFHF= LF_HF_LFHF(window_unwrapPhasePeak_mm)
+        local_LF.append(str(round(LF, 4)))
+        local_HF.append(str(round(HF, 4)))
+        local_LFHF.append(str(round(LFHF, 4)))
+
+    print(f"Real len: {len(unwrapPhasePeak_mm)}\nLF len: {len(local_LF)}\nHF len: {len(local_HF)}\nLFHF len: {len(local_LFHF)}")
+    raw_data_pd["LF"] = local_LF
+    raw_data_pd["HF"] = local_HF
+    raw_data_pd["LFHF"] = local_LFHF
+
+    # ------------------------ sHF sLFHF ------------------------ 
+    HF = raw_data_pd["HF"]
+    LFHF = raw_data_pd["LFHF"]
+    local_sHF = []
+    local_sLFHF = []
+    num_in_window = 31
+
+    # 空值補0
+    for i in range(num_in_window-1):
+        local_sHF.append(0)
+        local_sLFHF.append(0)
+
+    for turn in range(len(HF) - num_in_window + 1):
+        start_index = turn
+        end_index = start_index + num_in_window
+
+        # Slide data
+        window_HF = HF[start_index:end_index]
+        window_LFHF = LFHF[start_index:end_index]
+
+        # SG filter
+        local_sHF.append(str(round(sHF_fn(window_HF), 4)))
+        local_sLFHF.append(str(round(sLFHF_fn(window_LFHF), 4)))
+    print(f"Real len: {len(HF)}\nLF len: {len(local_LF)}\nsHF len: {len(local_sHF)}\nsLFHF len: {len(local_sLFHF)}")
+    raw_data_pd["sHF"] = local_sHF
+    raw_data_pd["sLFHF"] = local_sLFHF
 
     # ------------- tfRSA and tmHR ------------- 
     local_tfRSA = []
@@ -146,12 +253,13 @@ for num in range(len(os.listdir(files))):
     print(f"Real len: {len(heart)}\nsfRSA len: {len(local_sfRSA)}\nsmHR len: {len(local_smHR)}")
 
     # 插入特徵
-    new_data.insert(39, "tfRSA", local_tfRSA)
-    new_data.insert(40, "tmHR", local_tmHR)
-    new_data.insert(41, "sfRSA", local_sfRSA)
-    new_data.insert(42, "smHR", local_smHR)
-    new_data.insert(43, "sdfRSA", local_sdfRSA)
-    new_data.insert(44, "sdmHR", local_sdmHR)
+    new_data["tfRSA"] = local_tfRSA
+    new_data["tmHR"] = local_tmHR
+    new_data["sfRSA"] = local_sfRSA
+    new_data["smHR"] = local_smHR
+    new_data["sdfRSA"] = local_sdfRSA
+    new_data["sdmHR"] = local_sdmHR
+
 
     #new_data['tmHR'] = new_data['tmHR'].replace(0, np.nan)
     #new_data = new_data.dropna()
@@ -183,12 +291,13 @@ for num in range(len(os.listdir(files))):
         local_stfRSA.append(round(stfRSA_mean, 4))
         local_stmHR.append(round(stmHR_mean, 4))
 
-    new_data.insert(45, "stfRSA", local_stfRSA)
-    new_data.insert(46, "stmHR", local_stmHR)
+    new_data["stfRSA"] = local_stfRSA
+    new_data["stmHR"] = local_stmHR
 
     print("\nsfRSA and smHR Complete!")
     print(f"Real len: {len(heart)}\nstfRSA len: {len(local_stfRSA)}\nstmHR len: {len(local_stmHR)}")
 
+    #  ------------- all_time ------------- 
     all_time = []
     datetime_array = np.array(new_data['datetime'])
     time_800 = datetime.datetime.strptime('20:00:00', "%H:%M:%S")
@@ -198,11 +307,12 @@ for num in range(len(os.listdir(files))):
         time_feature = i - time_800
         #print(time_feature.seconds)
         all_time.append(time_feature.seconds)
-    new_data.insert(47, "time", all_time)
+    new_data["time"] = all_time
 
     print("\ntime Complete!")
     print(f"Real len: {len(heart)}\ntime len: {len(all_time)}")
-    #-----------------------------------
+
+    #  ------------- sleep_counter -------------
     stage_counter = []
     stage = np.array(new_data['sleep'])
     stage_5 = 0
@@ -237,12 +347,13 @@ for num in range(len(os.listdir(files))):
             stage_counter.append(stage_2)
             temp_stage = int(i)
     print(len(stage_counter))
-    new_data.insert(48, "sleep_counter", stage_counter)
+    new_data["sleep_counter"] = stage_counter
     
     print("\ntime Complete!")
     print(f"Real len: {len(heart)}\ntime len: {len(all_time)}")
 
-    new_data.drop(new_data.index[0:60],inplace=True) 
+    # ------------- Discard the first 60 seconds -------------
+    new_data.drop(new_data.index[0:60], inplace=True) 
     print(os.path.join("sleep_features", datas))
     new_data.to_csv(os.path.join("sleep_features", datas), index=False)
     print("Completed!")

@@ -7,6 +7,12 @@ def sec2min(data):
     heart_ar = []
     breath_ar = []
     sleep_ar = []
+    mov_dens_ar = []
+    LF_ar = []
+    HF_ar = []
+    LFHF_ar = []
+    sHF_ar = []
+    sLFHF_ar = []
     tfRSA_ar = []
     tmHR_ar = []
     sfRSA_ar = []
@@ -45,6 +51,12 @@ def sec2min(data):
             heart_ar.append(np.mean(data["heart"][strat_index:end_index]))
             breath_ar.append(np.mean(data["breath"][strat_index:end_index]))
             sleep_ar.append(np.mean(data["sleep"][strat_index:end_index]))
+            mov_dens_ar.append(np.mean(data["mov_dens"][strat_index:end_index]))
+            LF_ar.append(np.mean(data["LF"][strat_index:end_index]))
+            HF_ar.append(np.mean(data["HF"][strat_index:end_index]))
+            LFHF_ar.append(np.mean(data["LFHF"][strat_index:end_index]))
+            sHF_ar.append(np.mean(data["sHF"][strat_index:end_index]))
+            sLFHF_ar.append(np.mean(data["sLFHF"][strat_index:end_index]))
             tfRSA_ar.append(np.mean(data["tfRSA"][strat_index:end_index]))
             tmHR_ar.append(np.mean(data["tmHR"][strat_index:end_index]))
             sfRSA_ar.append(np.mean(data["sfRSA"][strat_index:end_index]))
@@ -58,7 +70,10 @@ def sec2min(data):
             next_HM = False
             strat_index = int(loc)
 
-    data_min_tmp = {"datetime":datetime_ar, "heart":heart_ar, "breath":breath_ar, "sleep":sleep_ar, "tfRSA":tfRSA_ar, "tmHR":tmHR_ar, "sfRSA":sfRSA_ar, "smHR":smHR_ar, "sdfRSA":sdfRSA_ar, "sdmHR":sdmHR_ar, "stfRSA":stfRSA_ar, "stmHR":stmHR_ar, "time":time_ar, "sleep_counter":stage_counter_ar}
+    data_min_tmp = {"datetime":datetime_ar, "heart":heart_ar, "breath":breath_ar, "sleep":sleep_ar, 
+                    "mov_dens":mov_dens_ar, "LF":LF_ar, "HF":HF_ar, "LFHF":LFHF_ar, "sHF":sHF_ar, "sLFHF":sLFHF_ar, 
+                    "tfRSA":tfRSA_ar, "tmHR":tmHR_ar, "sfRSA":sfRSA_ar, "smHR":smHR_ar, "sdfRSA":sdfRSA_ar, 
+                    "sdmHR":sdmHR_ar, "stfRSA":stfRSA_ar, "stmHR":stmHR_ar, "time":time_ar, "sleep_counter":stage_counter_ar}
     data_min = pd.DataFrame(data_min_tmp)
     return data_min
 

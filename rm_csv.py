@@ -4,7 +4,7 @@ import os
 os.mkdir(os.path.join("dataset_sleep_test", "processed_data"))
 for name in os.listdir(os.path.join("dataset_sleep_test")):
     print("正在處理：", name)
-    df = pd.read_csv(os.path.join("dataset_sleep_test", name))
+    df = pd.read_csv(os.path.join("dataset_sleep_test", name), low_memory=False)
 
     for i in range(df.shape[0]-1500, df.shape[0], 1):
         second = df['datetime'][i][-2:]

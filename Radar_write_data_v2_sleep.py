@@ -26,14 +26,35 @@ if __name__ == "__main__":
     time.sleep(4)
     print("111111111111111111111111111111111111111111111")
     time.sleep(1)
+
+    '''
+    # # UART Write initial
+    portw = serial.Serial("COM6",baudrate = 115200, timeout = 0.5) # User UART :notebook:COM6,computer:COM4
+    Read_Radar_parameter = open("./Radar_parameter.txt", "r")
+
+    for parameter in iter(Read_Radar_parameter):
+        portw.write((parameter.encode(encoding="utf-8")).strip(b'\n').replace(b"\\n",b"\n").replace(b"\\r",b"\r"))
+        time.sleep(1)
+        print((parameter.encode(encoding="utf-8")).strip(b'\n').replace(b"\\n",b"\n").replace(b"\\r",b"\r"))
+
+    Read_Radar_parameter.close()
+    portw.close()
+    '''
+    # # Data initial
+    port = serial.Serial("COM8",baudrate = 921600, timeout = 0.5) # Data Port
+    # #initial global value
+    gv = globalV(0)
+
+    """
     # Data initial
     port = serial.Serial("COM3",baudrate = 921600, timeout = 0.5) # Data Port
     #initial global value
     gv = globalV(0)
+    """
     vts = vitalsign_v2.VitalSign(port)
     # --------------------------------------------------
     folder='./dataset_sleep'									#資料庫名稱
-    name = '1124test'
+    name = '0105test'
     distance = str(0.8)									#資料要放進哪個距離的資料夾
     people =  folder +'/'+ name 
     if not os.path.isdir(people):

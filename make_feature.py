@@ -418,8 +418,8 @@ if __name__ == "__main__":
 
         # ------------- KNN Features ------------- 
         # Body Movement Index (BMI)
-        bmi = bmi(raw_data_pd)
-        raw_data_pd["bmi"] = bmi
+        bmi_1 = bmi(raw_data_pd)
+        raw_data_pd["bmi"] = bmi_1
 
         # Deep Parameter
         deep_p = deep_parameter(raw_data_pd)

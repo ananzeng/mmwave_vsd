@@ -2,11 +2,20 @@ import pandas as pd
 import numpy as np
 import os
 
+from make_feature import var_RPM
+
 # 秒轉分鐘
 def sec2min(data):
     heart_ar = []
     breath_ar = []
     sleep_ar = []
+    bmi_ar = []
+    deep_p_ar = []
+    ada_br_ar = []
+    ada_hr_ar = []
+    var_RPM_ar = []
+    var_HPM_ar= []
+    rem_parameter_ar = []
     mov_dens_ar = []
     LF_ar = []
     HF_ar = []
@@ -51,6 +60,13 @@ def sec2min(data):
             heart_ar.append(np.mean(data["heart"][strat_index:end_index]))
             breath_ar.append(np.mean(data["breath"][strat_index:end_index]))
             sleep_ar.append(np.mean(data["sleep"][strat_index:end_index]))
+            bmi_ar.append(np.mean(data["bmi"][strat_index:end_index]))
+            deep_p_ar.append(np.mean(data["deep_p"][strat_index:end_index]))
+            ada_br_ar.append(np.mean(data["ada_br"][strat_index:end_index]))
+            ada_hr_ar.append(np.mean(data["ada_hr"][strat_index:end_index]))
+            var_RPM_ar.append(np.mean(data["var_RPM"][strat_index:end_index]))
+            var_HPM_ar.append(np.mean(data["var_HPM"][strat_index:end_index]))
+            rem_parameter_ar.append(np.mean(data["rem_parameter"][strat_index:end_index]))
             mov_dens_ar.append(np.mean(data["mov_dens"][strat_index:end_index]))
             LF_ar.append(np.mean(data["LF"][strat_index:end_index]))
             HF_ar.append(np.mean(data["HF"][strat_index:end_index]))
@@ -67,10 +83,12 @@ def sec2min(data):
             stmHR_ar.append(np.mean(data["stmHR"][strat_index:end_index]))
             time_ar.append(np.mean(data["time"][strat_index:end_index]))
             stage_counter_ar.append(np.mean(data["sleep_counter"][strat_index:end_index]))
+
             next_HM = False
             strat_index = int(loc)
 
     data_min_tmp = {"datetime":datetime_ar, "heart":heart_ar, "breath":breath_ar, "sleep":sleep_ar, 
+                    "bmi":bmi_ar, "deep_p":deep_p_ar, "ada_br":ada_br_ar, "ada_hr":ada_hr_ar, "var_RPM":var_RPM_ar, "var_HPM":var_HPM_ar, "rem_parameter":rem_parameter_ar, 
                     "mov_dens":mov_dens_ar, "LF":LF_ar, "HF":HF_ar, "LFHF":LFHF_ar, "sHF":sHF_ar, "sLFHF":sLFHF_ar, 
                     "tfRSA":tfRSA_ar, "tmHR":tmHR_ar, "sfRSA":sfRSA_ar, "smHR":smHR_ar, "sdfRSA":sdfRSA_ar, 
                     "sdmHR":sdmHR_ar, "stfRSA":stfRSA_ar, "stmHR":stmHR_ar, "time":time_ar, "sleep_counter":stage_counter_ar}

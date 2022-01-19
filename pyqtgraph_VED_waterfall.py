@@ -113,14 +113,11 @@ gy.rotate(90, 1, 0, 0)
 gy.translate(0, -48, 10)
 gy.setSize(48, 24)
 gy.setSpacing(1, 1)
-
 wf.addItem(gy)
-
 gz = gl.GLGridItem()
 gz.translate(0, -18, 0)
 gz.setSize(48, 66)
 gz.setSpacing(1, 1)
-
 wf.addItem(gz)
 '''
 
@@ -184,7 +181,7 @@ def updateWF():
 #port = serial.Serial("/dev/tty.usbmodem14103",baudrate = 115200 , timeout = 0.5)  
 #port = serial.Serial("/dev/tty.usbmodemGY0050674",baudrate = 921600, timeout = 0.5)  
 #port = serial.Serial("/dev/tty.SLAB_USBtoUART3",baudrate = 921600, timeout = 0.5)  
-port = serial.Serial("COM4",baudrate = 921600, timeout = 0.5)
+port = serial.Serial("COM7",baudrate = 921600, timeout = 0.5)
 
 #for NUC ubuntu 
 #port = serial.Serial("/dev/ttyACM1",baudrate = 921600, timeout = 0.5)
@@ -235,9 +232,14 @@ v8A = []
 def update():    
 	global v8A
 	if len(v8A) == 3072:
-		print("======updateWF==================:{:}".format(len(v8A)))
+		#print("======updateWF==================:{:}".format(len(v8A)))
 		updateWF()
 
+def single_np(arr, target):
+	arr = np.array(arr)
+	mask = (arr == target)
+	arr_new = arr[mask]
+	return arr_new.size
 
 t = QtCore.QTimer()
 t.timeout.connect(update)
@@ -249,9 +251,8 @@ prev_fn = 0
 save = 1  # 要儲存設 1 不存設 0
 path = "./saved_img"
 num = len(os.listdir(path))
-
 def radarExec():
-	global v9len,v10len,v8len,prev_fn,flag,uFlag,fn,v8A, num, path
+	global v9len,v10len,v8len,prev_fn,flag,uFlag,fn,v8A, num, path, before_frame
 
 	v8 = []
 	v9 = []
@@ -263,14 +264,15 @@ def radarExec():
 	fn = hdr.frameNumber
 	
 	if  fn != prev_fn:
-		print("--------------{:}-----------".format(fn))
+		#print("--------------{:}-----------".format(fn))
 		prev_fn = fn
 		v8len = len(v8)
 		v9len = len(v9)
 		v10len = len(v10)
 		
 		if v8len == 3072:
-			print("Sensor Data: [v8,v9,v10]:[{:d},{:d},{:d}]".format(v8len,v9len,v10len))
+			
+			#print("Sensor Data: [v8,v9,v10]:[{:d},{:d},{:d}]".format(v8len,v9len,v10len))
 			
 			#vs2 = np.log(v8) #np.sqrt(np.sqrt(v8))
 
@@ -300,54 +302,63 @@ def radarExec():
  
 			heatmapshow = None
 			heatmapshow = cv2.normalize(cv2img, heatmapshow, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-			heatmapshow1 = heatmapshow.copy()
+			heatmapshow = np.array(255 * (heatmapshow / 255) ** 1.2, dtype='uint8')
 			heatmapshow = cv2.applyColorMap(heatmapshow, cv2.COLORMAP_JET)
 			heatmapshow = cv2.cvtColor(heatmapshow, cv2.COLOR_BGR2GRAY)
-			#kernel = np.ones((3,3), np.uint8)
-			#heatmapshow = cv2.dilate(heatmapshow, kernel, iterations = 1)
+			kernel = np.ones((3,3), np.uint8)
+			heatmapshow = cv2.dilate(heatmapshow, kernel, iterations = 1)
 			heatmapshow = cv2.resize(heatmapshow, (1024, 768), interpolation=cv2.INTER_AREA)
 			heatmapshow = cv2.flip(heatmapshow, 1)
+			_, heatmapshow = cv2.threshold(heatmapshow, 130, 255, cv2.THRESH_BINARY)
+			diff_pixel_number = single_np(heatmapshow.ravel(), 255)
+			if diff_pixel_number > 214572:
+				heatmapshow = before_frame
+			before_frame1 = heatmapshow.copy()
+			contours, hierarchy = cv2.findContours(heatmapshow, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+			area_temp = []
+			if len(contours) == 1:
+				area1 = cv2.contourArea(contours[0])
+				area_temp.append(area1)
+				order = 0
+			else:
+				
+				for i in range(len(contours)):
+					area1 = cv2.contourArea(contours[i])
+					area_temp.append(area1)
+				order = np.argmax(np.array(area_temp))
 
-			# print(np.shape(heatmapshow))
-			# _, heatmapshow = cv2.threshold(heatmapshow, 127, 255, cv2.THRESH_BINARY)
-			
-			# contours, hierarchy = cv2.findContours(heatmapshow, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-			# if len(contours) == 1:
-			# 	order = 0
-			# else:
-			# 	area_temp = []
-			# 	for i in range(len(contours)):
-			# 		area1 = cv2.contourArea(contours[i])
-			# 		area_temp.append(area1)
-			# 	order = np.argmax(np.array(area_temp))
-			# rect = cv2.minAreaRect(contours[order])
-			# box = cv2.boxPoints(rect)
-			# box = np.int0(box)
-			# print(box)
+			rect = cv2.minAreaRect(contours[order])
+			box = cv2.boxPoints(rect)
+			box = np.int0(box)
+			#print(box)
 
-			# file_mask_copy1 = np.expand_dims(file_mask_copy, axis=2)
-			# file_mask_copy2 = np.concatenate((file_mask_copy1, file_mask_copy1, file_mask_copy1), axis=-1)
 
 			heatmapshow = np.expand_dims(heatmapshow, axis=2)
 			heatmapshow = np.concatenate((heatmapshow, heatmapshow, heatmapshow), axis=-1)
-			cv2.imshow("Heatmap", heatmapshow)
+			#print("面積", area_temp[order])
+			#before_frame2 = before_frame1 - before_frame
+			before_frame2 = cv2.absdiff(before_frame1, before_frame)
+			diff_pixel_number = single_np(before_frame2.ravel(), 255)
+			print("差異像素", diff_pixel_number)
+			#計算長寬比
+			w = box[3][0] - box[1][0]
+			h = box[3][1] - box[1][1]
+			
+			if 	diff_pixel_number> 18000 and float(w/h) > 1.5: #fall
+				cv2.rectangle(heatmapshow, (box[1]), (box[3]), (0, 255, 0), 20)
+			elif diff_pixel_number> 18000:
+				cv2.rectangle(heatmapshow, (box[1]), (box[3]), (0, 255, 255), 10) #黃色 差異太大的時候
+			else:
+				cv2.rectangle(heatmapshow, (box[1]), (box[3]), (0, 0, 255), 5)
+			cv2.imshow("Heatmap", heatmapshow) #現在的frame
+	
+			#cv2.imshow("before_frame", before_frame) #上一個frame
+			cv2.imshow("before_frame2", before_frame2) #現在的frame - 上一個frame
+			before_frame = before_frame1
+			cv2.waitKey(200)
+			#cv2.imwrite(path + '/heatmap_' + str(num) + '.png', heatmapshow1)
+			#num += 1
 
-			#cv2.rectangle(heatmapshow, (box[1]), (box[3]), (0, 0, 255), 2)
-			print(np.min(heatmapshow))
-			cv2.imshow("Heatmap", heatmapshow)
-			cv2.waitKey(1)
-			cv2.imwrite(path + '/heatmap_' + str(num) + '.png', heatmapshow1)
-			num += 1
-			# if save == 1:
-			# 	if not os.path.isdir(path):
-			# 		os.mkdir(path)
-					
-			# 	cv2.imwrite(path + '/heatmap_' + str(num) + '.jpg', heatmapshow)
-			# 	num += 1
-			# 	cv2.waitKey(0)
-			# else:
-			# 	cv2.waitKey(0)
-			# --------------------------------------------------
 
 		
 	port.flushInput()
@@ -355,6 +366,7 @@ def radarExec():
 		 
 def uartThread(name):
 	port.flushInput()
+
 	while True:
 		radarExec()
 					
@@ -365,5 +377,6 @@ thread1.start()
 ## Start Qt event loop unless running in interactive mode.
 if __name__ == '__main__':
     import sys
+    before_frame = np.zeros((768, 1024), np.uint8)
     if (sys.flags.interactive != 1) or not hasattr(QtCore,'PYQT_VERSION'):
         QtGui.QApplication.instance().exec_()

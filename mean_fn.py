@@ -44,7 +44,7 @@ def sec2min(data):
         end_min = loc_time[loc][3:5]
 
         # 小時
-        if int(end_hour) - int(start_hour) >= 1:
+        if int(end_hour) - int(start_hour) >= 1 or int(end_hour) - int(start_hour) == -23:
             start_hour = end_hour
             start_min = end_min
             next_HM = True

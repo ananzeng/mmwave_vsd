@@ -2,6 +2,7 @@ import os
 import csv
 import serial
 import pickle
+import joblib
 import datetime, time
 
 import numpy as np
@@ -37,7 +38,7 @@ if __name__ == "__main__":
     with open(path_data, "a", newline="") as csvFile:
         writer = csv.writer(csvFile, dialect = "excel")
         writer.writerow(["heart", "breath", "bmi", "deep_p", "ada_br", "ada_hr", "var_RPM", "var_HPM", "rem_parameter", "mov_dens", "LF", "HF", "LFHF",
-                	    "sHF", "sLFHF", "tfRSA", "tmHR", "sfRSA", "smHR", "sdfRSA", "sdmHR", "stfRSA", "stmHR", "time", "datetime"])
+                	    "sHF", "sLFHF", "tfRSA", "tmHR", "sfRSA", "smHR", "sdfRSA", "sdmHR", "stfRSA", "stmHR", "time", "datetime", "sleep"])
     with open(path_range_bin, "a",newline="") as csvFile:
         writer = csv.writer(csvFile, dialect = "excel")
         writer.writerow(["rangeBinInde"])
@@ -48,6 +49,9 @@ if __name__ == "__main__":
     # Data initial
     port = serial.Serial("COM5", baudrate = 921600, timeout = 0.5)
     vts = vitalsign_v2.VitalSign(port)
+
+    # 載入模型
+    rf2 = joblib.load('save/sleep_feature_min_rf.pkl')
 
     raw_sig = []  # 訊號的窗格
     energe_br = []  # 呼吸能量的窗格
@@ -66,6 +70,39 @@ if __name__ == "__main__":
     raw_sig_KNN = []
     var_RPM_br_KNN = []
     var_RPM_hr_KNN = []
+
+    # 秒 => 分鐘
+    counter_mean = 0
+    heart_ar = []
+    breath_ar = []
+    sleep_ar = []
+    bmi_ar = []
+    deep_p_ar = []
+    ada_br_ar = []
+    ada_hr_ar = []
+    var_RPM_ar = []
+    var_HPM_ar= []
+    rem_parameter_ar = []
+    mov_dens_ar = []
+    LF_ar = []
+    HF_ar = []
+    LFHF_ar = []
+    sHF_ar = []
+    sLFHF_ar = []
+    tfRSA_ar = []
+    tmHR_ar = []
+    sfRSA_ar = []
+    smHR_ar = []
+    sdfRSA_ar = []
+    sdmHR_ar = []
+    stfRSA_ar = []
+    stmHR_ar = []
+    time_ar = []
+    next_HM = False
+
+    # 計算前幾分鐘
+    looper = 0
+    tmp_rest = []
 
     # final_results
     all_results = np.zeros(24)
@@ -159,15 +196,15 @@ if __name__ == "__main__":
                             if len(current_window_bmi) == 60 * 20:  # 60(秒) 20(取樣頻率)
                                 mov_dens = mov_dens_fn(current_window_bmi)
                                 print(f"mov_dens: {mov_dens}")
-                                all_results[7] = mov_dens
+                                mov_dens_ar.append(mov_dens)
 
                             """ 呼吸 """
                             # tfRSA
-                            if len(var_RPM_br_KNN) >= 20:  # 原本為 10, 窗格改為20
-                                tfRSA = tfRSA_fn(var_RPM_br_KNN[-20:])
+                            if len(var_RPM_br_KNN) >= 10:  # 原本為 10, 窗格改為20
+                                tfRSA = tfRSA_fn(var_RPM_br_KNN[-10:])
                                 tfRSA_arr.append(tfRSA)
                                 print(f"tfRSA: {tfRSA}")
-                                all_results[13] = tfRSA
+                                tfRSA_ar.append(tfRSA)
                                 if len(tfRSA_arr) >= 31:
                                     open_stfRSA = True
 
@@ -175,26 +212,26 @@ if __name__ == "__main__":
                             if len(var_RPM_br_KNN) >= 31:
                                 sfRSA, sfRSA_mean = sfRSA_fn(var_RPM_br_KNN[-31:])
                                 print(f"sfRSA: {sfRSA_mean}")
-                                all_results[15] = sfRSA_mean
+                                sfRSA_ar.append(sfRSA_mean)
 
                             # stfRSA
                             if open_stfRSA:
                                 stfRSA, stfRSA_mean = stfRSA_fn(tfRSA_arr)
                                 print(f"stfRSA: {stfRSA_mean}")
-                                all_results[19] = stfRSA_mean
+                                stfRSA_ar.append(stfRSA_mean)
                                 tfRSA_arr.pop(0)
                             
                             # sdfRSA
                             if len(var_RPM_br_KNN) >= 31:
                                 sdfRSA, sdfRSA_mean = sdfRSA_fn(var_RPM_br_KNN[-31:], sfRSA)
                                 print(f"sdfRSA: {sdfRSA_mean}")
-                                all_results[17] = sdfRSA_mean
+                                sdfRSA_ar.append(sdfRSA_mean)
                             
                             """ 心跳 """
                             # tmHR
-                            if len(var_RPM_hr_KNN) >= 20:  # 原本為 10, 窗格改為20
-                                tmHR = tmHR_fn(var_RPM_hr_KNN[-20:])
-                                all_results[14] = tmHR
+                            if len(var_RPM_hr_KNN) >= 10:  # 原本為 10, 窗格改為20
+                                tmHR = tmHR_fn(var_RPM_hr_KNN[-10:])
+                                tmHR_ar.append(tmHR)
                                 tmHR_arr.append(tmHR)
                                 if len(tmHR_arr) >= 31:
                                     open_stmHR = True
@@ -202,27 +239,27 @@ if __name__ == "__main__":
                             # smHR
                             if len(var_RPM_hr_KNN) >= 31:
                                 smHR, smHR_mean = smHR_fn(var_RPM_hr_KNN[-31:])
-                                all_results[16] = smHR_mean
+                                smHR_ar.append(smHR_mean)
 
                             # stmHR
                             if open_stmHR:
                                 stmHR, stmHR_mean = stmHR_fn(tmHR_arr)
-                                all_results[20] = stmHR_mean
+                                stmHR_ar.append(stmHR_mean)
                                 tmHR_arr.pop(0)
                             
                             # sdmHR
                             if len(var_RPM_hr_KNN) >= 31:
                                 sdmHR, sdmHR_mean = sdmHR_fn(var_RPM_hr_KNN[-31:], smHR)
-                                all_results[18] = sdmHR_mean
+                                sdmHR_ar.append(sdmHR_mean)
 
                             # LF_HF_LFHF
                             LF, HF, LFHF = LF_HF_LFHF(LF_HF_LFHF_windows)
                             print(f"LF: {LF}")
                             print(f"HF: {HF}")
                             print(f"LFHF: {LFHF}")
-                            all_results[8] = LF
-                            all_results[9] = HF
-                            all_results[10] = LFHF
+                            LF_ar.append(LF)
+                            HF_ar.append(HF)
+                            LFHF_ar.append(LFHF)
                             HF_arr.append(HF)
                             LFHF_arr.append(LFHF)
                             if len(HF_arr) >= 31:
@@ -235,8 +272,8 @@ if __name__ == "__main__":
                                 sLFHF, sLFHF_mean = sLFHF_fn(LFHF_arr)
                                 print(f"sHF: {sHF_mean}")
                                 print(f"sLFHF: {sLFHF_mean}")
-                                all_results[11] = sHF_mean
-                                all_results[12] = sLFHF_mean
+                                sHF_ar.append(sHF_mean)
+                                sLFHF_ar.append(sLFHF_mean)
                                 HF_arr.pop(0)
                                 LFHF_arr.pop(0)
 
@@ -247,8 +284,11 @@ if __name__ == "__main__":
                                 var_RPM_hr = var_RPM(var_RPM_hr_KNN)
                                 var_RPM_br_KNN.pop(0)
                                 var_RPM_hr_KNN.pop(0)
-                                all_results[4] = var_RPM_br
-                                all_results[5] = var_RPM_hr
+                                var_RPM_ar.append(var_RPM_br)
+                                var_HPM_ar.append(var_RPM_hr)
+                                
+                                # 進入迴圈後，前 10 分鐘不紀錄
+                                looper += 1
                                 print(f"Variance of RPM: BR = {var_RPM_br}, HR = {var_RPM_hr}")
                             
                             # Body Movement Index (BMI)
@@ -258,39 +298,123 @@ if __name__ == "__main__":
                                 hk = np.mean(var_RPM_hr_KNN[-60:])
                                 dk = deep_parameter(bmi_current, hk)
                                 print(f"Body Movement Index: {bmi_current}")
-                                all_results[0] = bmi_current
+                                bmi_ar.append(bmi_current)
                                 print(f"Deep Parameter: {dk}")
-                                all_results[1] = dk
+                                deep_p_ar.append(dk)
                                 # Amplitude Difference Accumulation (ADA) of Respiration
                                 ada_br = ada(current_window_bmi, brhr = 0)
                                 ada_hr = ada(current_window_bmi, brhr = 1)
                                 print(f"ADA: BR = {ada_br}, HR = {ada_hr}")
-                                all_results[2] = ada_br
-                                all_results[3] = ada_hr
+                                ada_br_ar.append(ada_br)
+                                ada_hr_ar.append(ada_hr)
 
                             # REM Parameter
                             if len(var_RPM_br_KNN) >= 5 * 60:
                                 rem_p = rem_parameter(var_RPM_br_KNN[-5*60:])
                                 print(f"REM Parameter: {rem_p}") 
-                                all_results[6] = rem_p
+                                rem_parameter_ar.append(rem_p)
 
                             # Time features
                             ct3 = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S") # 時間格式為字串
                             tmp_time = time_fn(ct3[11:19])
                             print(f"Time features: {tmp_time}")
-                            all_results[21] = tmp_time
-                            all_results[22] = br_rpm
-                            all_results[23] = hr_rpm
+                            time_ar.append(tmp_time)
+                            breath_ar.append(br_rpm)
+                            heart_ar.append(hr_rpm)
+
                             # print("TIME：", ct2)
                             print(f"Breathe Rate per minute: {br_rpm}")
                             print(f"Heart Rate per minute: {hr_rpm}")
                             print(f"Len of br: {len(var_RPM_br_KNN)}")
+                            print()
+                            
+                            if counter_mean == 0:
+                                loc_time = ct3[11:19]
+                                start_hour = loc_time[:2]
+                                start_min = loc_time[3:5]
+                                end_hour = start_hour
+                                end_min = start_min
+                                counter_mean += 1
+                            else:
+                                loc_time = ct3[11:19]
+                                end_hour = loc_time[:2]
+                                end_min = loc_time[3:5]
 
-                            print(all_results)
+                            # 小時
+                            if int(end_hour) - int(start_hour) >= 1 or int(end_hour) - int(start_hour) == -23:
+                                start_hour = end_hour
+                                start_min = end_min
+                                next_HM = True
 
-                            # recording(path_data, vd, hr_rpm, br_rpm)
-                            if sec == "00":
-                                recording_final(path_data, ct3[11:19], all_results)
+                            # 分鐘
+                            if int(end_min) - int(start_min) >= 1:
+                                start_min = end_min
+                                next_HM = True  
+                        
+                            if next_HM and looper >= 10:
+                                all_results[22] = np.mean(breath_ar)
+                                all_results[23] = np.mean(heart_ar)
+                                all_results[0] = np.mean(bmi_ar)
+                                all_results[1] = np.mean(deep_p_ar)
+                                all_results[2] = np.mean(ada_br_ar)
+                                all_results[3] = np.mean(ada_hr_ar)
+                                all_results[4] = np.mean(var_RPM_ar)
+                                all_results[5] = np.mean(var_HPM_ar)
+                                all_results[6] = np.mean(rem_parameter_ar)
+                                all_results[7] = np.mean(mov_dens_ar)
+                                all_results[8] = np.mean(LF_ar)
+                                all_results[9] = np.mean(HF_ar)
+                                all_results[10] = np.mean(LFHF_ar)
+                                all_results[11] = np.mean(sHF_ar)
+                                all_results[12] = np.mean(sLFHF_ar)
+                                all_results[13] = np.mean(tfRSA_ar)
+                                all_results[14] = np.mean(tmHR_ar)
+                                all_results[15] = np.mean(sfRSA_ar)
+                                all_results[16] = np.mean(smHR_ar)
+                                all_results[17] = np.mean(sdfRSA_ar)
+                                all_results[18] = np.mean(sdmHR_ar)
+                                all_results[19] = np.mean(stfRSA_ar)
+                                all_results[20] = np.mean(stmHR_ar)
+                                all_results[21] = np.mean(time_ar)
+                                tmp_rest.append(all_results[23])
+                                tmp_rest.append(all_results[22])
+                                tmp_rest[2:24] = all_results[0:22]
+                                print(tmp_rest)
+                                print(len(tmp_rest))
+                                sleep = rf2.predict(np.array(tmp_rest).reshape(1, -1))
+
+                                # reset
+                                tmp_rest = []
+                                heart_ar = []
+                                breath_ar = []
+                                sleep_ar = []
+                                bmi_ar = []
+                                deep_p_ar = []
+                                ada_br_ar = []
+                                ada_hr_ar = []
+                                var_RPM_ar = []
+                                var_HPM_ar= []
+                                rem_parameter_ar = []
+                                mov_dens_ar = []
+                                LF_ar = []
+                                HF_ar = []
+                                LFHF_ar = []
+                                sHF_ar = []
+                                sLFHF_ar = []
+                                tfRSA_ar = []
+                                tmHR_ar = []
+                                sfRSA_ar = []
+                                smHR_ar = []
+                                sdfRSA_ar = []
+                                sdmHR_ar = []
+                                stfRSA_ar = []
+                                stmHR_ar = []
+                                time_ar = []
+                                next_HM = False
+                                recording_final(path_data, ct3[11:19], all_results, int(sleep[0]))
+                            # # recording(path_data, vd, hr_rpm, br_rpm)
+                            # if sec == "00":
+                            #     recording_final(path_data, ct3[11:19], all_results)
                             
                         tmp_br = br_rpm
                         tmp_hr = hr_rpm

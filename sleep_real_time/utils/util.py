@@ -50,10 +50,10 @@ def recording(path_data, vd, hr_rpm, br_rpm):
                         vd.confidenceMetricHeartOut_4Hz,vd.confidenceMetricHeartOut_xCorr,vd.sumEnergyBreathWfm,vd.sumEnergyHeartWfm,vd.motionDetectedFlag,
                         vd.rsv[0],vd.rsv[1],vd.rsv[2],vd.rsv[3],vd.rsv[4],vd.rsv[5],vd.rsv[6],vd.rsv[7],vd.rsv[8],vd.rsv[9],ct3[11:19], hr_rpm, br_rpm])
 
-def recording_final(path_data, current_time, all_results):
+def recording_final(path_data, current_time, all_results, sleep):
     ct3 = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S") # 時間格式為字串
     with open(path_data, "a", newline="") as csvFile:
         writer = csv.writer(csvFile, dialect = "excel")
         writer.writerow([all_results[22], all_results[23], all_results[0], all_results[1], all_results[2], all_results[3], all_results[4], all_results[5], all_results[6], all_results[7], all_results[8], all_results[9], all_results[10],
                         all_results[11], all_results[12], all_results[13], all_results[14], all_results[15], all_results[16], all_results[17], all_results[18], all_results[19], all_results[20], all_results[21],
-                        current_time])
+                        current_time, sleep])

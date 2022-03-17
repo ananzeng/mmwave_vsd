@@ -3,7 +3,13 @@ import csv
 import serial
 import pickle
 import joblib
+import torch
 import datetime, time
+import model_lstm
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set()
+sns.set_style('whitegrid', {'axes.grid': False})
 
 import numpy as np
 import pandas as pd
@@ -16,6 +22,7 @@ import vitalsign_v2
 
 
 if __name__ == "__main__":
+    disp_stage = True
     count = 0
     # change = True
     begin = False
@@ -52,6 +59,18 @@ if __name__ == "__main__":
 
     # 載入模型
     rf2 = joblib.load('save/sleep_feature_min_rf.pkl')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = torch.load('./model_300.pt').to(device)
+    model.eval()
+    gru_predict = []
+    
+    mean_ar = np.array([67.87012803, 18.49753511, 0.282721934, 0.002383877, 0.197167041, 0.584961947, 2.899909208, 
+                134.9589513, 1.083002142, 52.7133948, 261343.2255, 628701.942, 2.507260428, 627178.2191, 2.505726587, 
+                0.215058518, 3.47035615, 18.49614029, 67.87206194, 0.093312573, 2.708460289, 0.215031983, 3.470201397, 30618.87585])
+    std_ar = np.array([9.499193027, 2.075755716, 0.554280615, 0.002923814, 0.312625768, 0.722733808, 1.914084287,
+                83.20783065, 0.566579257, 37.65284092, 768606.4961, 1848487.468, 1.336579564, 1844982.151, 1.268668164, 
+                0.102013403, 2.565496177, 2.053587455, 9.2460513, 0.042092082, 2.03966685, 0.098888847, 2.477732164, 7859.688345])
+    
 
     raw_sig = []  # 訊號的窗格
     energe_br = []  # 呼吸能量的窗格
@@ -117,27 +136,27 @@ if __name__ == "__main__":
     start_time = int(ct[11:13])*3600 + int(ct[14:16])*60 + int(ct[17:19])
 
     # Start recording
-    while True:
-        (dck , vd, rangeBuf) = vts.tlv_read(False)
-        vs = vts.getHeader()
-        if dck:
-            raw_sig.append(vd.unwrapPhasePeak_mm)
-            raw_sig_KNN = list(np.copy(raw_sig))
-            heartRateEst_FFT_mean = np.mean(vd.heartRateEst_FFT)
-            heartRateEst_xCorr_mean = np.mean(vd.heartRateEst_xCorr)
-            heart_ti.append(vd.rsv[1])
-            breath_ti.append(vd.rsv[0])
-            hr_rate = 0
-            br_rate = 0
-            time_End = time.time()
+    try:
+        while True:
+            (dck , vd, rangeBuf) = vts.tlv_read(False)
+            vs = vts.getHeader()
+            if dck:
+                raw_sig.append(vd.unwrapPhasePeak_mm)
+                raw_sig_KNN = list(np.copy(raw_sig))
+                heartRateEst_FFT_mean = np.mean(vd.heartRateEst_FFT)
+                heartRateEst_xCorr_mean = np.mean(vd.heartRateEst_xCorr)
+                heart_ti.append(vd.rsv[1])
+                breath_ti.append(vd.rsv[0])
+                hr_rate = 0
+                br_rate = 0
+                time_End = time.time()
 
-            # Time 40 seconds
-            if coco:
-                print(f"Elapsed time (sec): {round(time_End - time_Start, 3)}")
-            
-            if len(raw_sig) > 40*20:
-                coco = False
-                try:
+                # Time 40 seconds
+                if coco:
+                    print(f"Elapsed time (sec): {round(time_End - time_Start, 3)}")
+                
+                if len(raw_sig) > 40*20:
+                    coco = False
                     # 只取最後 40 秒的值
                     current_window_sig = raw_sig[-40*20:]
                     current_heart_ti = heart_ti[-40*20:]
@@ -379,11 +398,34 @@ if __name__ == "__main__":
                                 tmp_rest.append(all_results[23])
                                 tmp_rest.append(all_results[22])
                                 tmp_rest[2:24] = all_results[0:22]
-                                print(tmp_rest)
-                                print(len(tmp_rest))
-                                sleep = rf2.predict(np.array(tmp_rest).reshape(1, -1))
+                                for i in range(len(tmp_rest)):
+                                    if tmp_rest[i] == 'NaN':
+                                        tmp_rest[i] = 0
+                                    elif tmp_rest[i] > 140700000:
+                                        tmp_rest[i] = 140700000
+                                # print(tmp_rest)
+                                # print(len(tmp_rest))
+                                rf_predict = rf2.predict_proba(np.array(tmp_rest).reshape(1, -1))
+                                
+
+                                # GRU
+                                model_data = np.array(tmp_rest)
+                                model_data = torch.from_numpy((model_data - mean_ar)/std_ar).reshape(1, -1).to(device=device)
+                                model_data = torch.unsqueeze(model_data, 0).float()
+                                print(model_data.shape)
+                                out = model(model_data)
+                                out = out.cpu().detach().numpy()
+                                e_output = np.exp(out)
+                                sum_e_output = np.sum(e_output)
+                                gru_predict.append((e_output / sum_e_output)[0])
+                                merge_prob_array = np.array(rf_predict)*0.65 + np.array(gru_predict)*0.35
+                                sleep_stage = np.argmax(merge_prob_array, 1)[0]
+                                print(f'rf_predict: {rf_predict}')
+                                print(f'gru_predict: {gru_predict}')
+                                print(f"sleep_stage: {sleep_stage}")
 
                                 # reset
+                                gru_predict = []
                                 tmp_rest = []
                                 heart_ar = []
                                 breath_ar = []
@@ -411,7 +453,7 @@ if __name__ == "__main__":
                                 stmHR_ar = []
                                 time_ar = []
                                 next_HM = False
-                                recording_final(path_data, ct3[11:19], all_results, int(sleep[0]))
+                                recording_final(path_data, ct3[11:19], all_results, int(sleep_stage))
                             # # recording(path_data, vd, hr_rpm, br_rpm)
                             # if sec == "00":
                             #     recording_final(path_data, ct3[11:19], all_results)
@@ -419,10 +461,29 @@ if __name__ == "__main__":
                         tmp_br = br_rpm
                         tmp_hr = hr_rpm
                         start_time = end_time
+                with open(path_range_bin, "a",newline="") as csvFile:
+                    writer = csv.writer(csvFile, dialect = "excel")
+                    writer.writerow([rangeBuf])
 
-                except KeyboardInterrupt:
-                    print("Interrupt")
+    except KeyboardInterrupt:
+        if disp_stage:
+            plt.figure()
+            saved_data = pd.read_csv(path_data)
+            stage_datetime_set = []
+            stage = np.array(saved_data['sleep'])
+            stage_datetime = list(saved_data['datetime'])
+            if len(stage_datetime) > 15:
+                set_time = np.arange(0, len(stage_datetime), len(stage_datetime)//15)
+                for i in set_time:
+                    stage_datetime_set.append(stage_datetime[i])
+                plt.xticks(set_time, stage_datetime_set, rotation=30)
+            else:
+                plt.xticks(stage_datetime_set, rotation=30)
+            plt.plot(stage)
+            plt.ylim(-1, 4)
+            plt.yticks([0, 1, 2, 3], ['DEEP', 'LIGHT', 'REM', 'AWAKE'])
+            plt.title('SLEEP STAGE', size=14)
+            plt.ylabel('STAGE', size=14)
+            plt.xlabel('TIME', size=14)
+            plt.show()
             
-            with open(path_range_bin, "a",newline="") as csvFile:
-                writer = csv.writer(csvFile, dialect = "excel")
-                writer.writerow([rangeBuf])
